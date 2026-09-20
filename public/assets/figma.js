@@ -981,7 +981,6 @@ function EnhancedLoginPage() {
                   (0, M.jsxDEV)('div', {
                     className: 'grid grid-cols-2 gap-1.5',
                     children: Object.values(demoAccountsMap).map((demo) => (0, M.jsxDEV)('button', {
-                      key: demo.roleId,
                       type: 'button',
                       onClick: () => {
                         handleRoleSelect(demo.roleId);
@@ -1005,7 +1004,7 @@ function EnhancedLoginPage() {
                           children: [`Pass: `, demo.pass]
                         })
                       ]
-                    }))
+                    }, demo.roleId, false))
                   })
                 ]
               }),
@@ -3327,15 +3326,15 @@ function EnhancedSmartMatching() {
 
 
 
+
 // ==================== SWIGGY-STYLE GOOGLE MAPS ENGINE ====================
 
-// Read API Key with user fallback
+// Read API Key with user fallback (strictly no import.meta to prevent syntax errors in non-module contexts)
 function getGoogleMapsApiKey() {
-  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
-    return import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  }
   if (typeof window !== 'undefined') {
-    if (window.VITE_GOOGLE_MAPS_API_KEY && !window.VITE_GOOGLE_MAPS_API_KEY.startsWith('%')) return window.VITE_GOOGLE_MAPS_API_KEY;
+    if (window.VITE_GOOGLE_MAPS_API_KEY && !window.VITE_GOOGLE_MAPS_API_KEY.startsWith('%')) {
+      return window.VITE_GOOGLE_MAPS_API_KEY;
+    }
     try {
       const stored = localStorage.getItem('VITE_GOOGLE_MAPS_API_KEY');
       if (stored) return stored;
@@ -3344,45 +3343,66 @@ function getGoogleMapsApiKey() {
   return 'AIzaSyCbmgzXaAv6EJgHWBsLctKK0cScYagMI0M';
 }
 
-// Dynamically load Google Maps script
+// Dynamically load Google Maps script with constructor verification
 let googleMapsLoadingPromise = null;
 function loadGoogleMapsApi(apiKey) {
   if (typeof window === 'undefined') return Promise.reject(new Error('Window not defined'));
-  if (window.google && window.google.maps) {
+  if (window.google && window.google.maps && typeof window.google.maps.Map === 'function') {
     return Promise.resolve(window.google.maps);
   }
   if (googleMapsLoadingPromise) return googleMapsLoadingPromise;
 
   const key = apiKey || getGoogleMapsApiKey();
   googleMapsLoadingPromise = new Promise((resolve, reject) => {
-    const scriptId = 'google-maps-platform-script';
-    if (document.getElementById(scriptId)) {
-      const interval = setInterval(() => {
-        if (window.google && window.google.maps) {
-          clearInterval(interval);
-          resolve(window.google.maps);
-        }
-      }, 100);
-      return;
+    if (window.google && window.google.maps && typeof window.google.maps.Map === 'function') {
+      return resolve(window.google.maps);
     }
 
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.type = 'text/javascript';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places,geometry`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
+    const cbName = '__initBloodConnectMaps_' + Math.random().toString(36).substring(2, 9);
+    let resolved = false;
+
+    window[cbName] = () => {
+      resolved = true;
+      delete window[cbName];
       if (window.google && window.google.maps) {
         resolve(window.google.maps);
-      } else {
-        reject(new Error('Google Maps script loaded but window.google.maps is undefined.'));
       }
     };
-    script.onerror = (err) => {
-      reject(new Error('Failed to load Google Maps API.'));
-    };
-    document.head.appendChild(script);
+
+    const scriptId = 'google-maps-platform-script';
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.type = 'text/javascript';
+      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=places,geometry&callback=' + cbName + '&loading=async';
+      script.async = true;
+      script.defer = true;
+      script.onerror = (err) => {
+        delete window[cbName];
+        reject(new Error('Failed to load Google Maps script'));
+      };
+      document.head.appendChild(script);
+    }
+
+    // Safety polling check for constructor
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      if (window.google && window.google.maps && typeof window.google.maps.Map === 'function') {
+        clearInterval(interval);
+        if (!resolved) {
+          resolved = true;
+          delete window[cbName];
+          resolve(window.google.maps);
+        }
+      } else if (attempts > 80) {
+        clearInterval(interval);
+        if (!resolved) {
+          reject(new Error('Google Maps Map constructor initialization timeout'));
+        }
+      }
+    }, 60);
   });
 
   return googleMapsLoadingPromise;
@@ -3448,6 +3468,15 @@ const SWIGGY_CLEAN_MAP_STYLE = [
   { featureType: "water", elementType: "all", stylers: [{ color: "#bae6fd" }, { visibility: "on" }] }
 ];
 
+const DEFAULT_MAP_FACILITIES = [
+  { id: 'H1', name: 'City Hospital (Emergency Dock)', type: 'hospital', city: 'Kolhapur', lat: 16.7050, lng: 74.2433, address: 'Station Road, Shahupuri, Kolhapur', status: 'emergency', distance: 'Emergency Center' },
+  { id: 'BB1', name: 'City Blood Bank', type: 'bloodbank', city: 'Kolhapur', lat: 16.6980, lng: 74.2380, address: 'Rajaram Road, Kolhapur', distance: '2.4 km', matchScore: 96, units: 6, bloodGroups: ['AB+', 'O+', 'A+'], verified: true, available: true },
+  { id: 'BB2', name: 'Lifeline Blood Centre', type: 'bloodbank', city: 'Kolhapur', lat: 16.7120, lng: 74.2510, address: 'Tarabai Park, Kolhapur', distance: '5.8 km', matchScore: 88, units: 4, bloodGroups: ['AB+', 'B+', 'O-'], verified: true, available: true },
+  { id: 'D1', name: 'Rajesh Kumar (Donor)', type: 'donor', city: 'Kolhapur', lat: 16.7010, lng: 74.2450, address: 'Rajarampuri, Kolhapur', distance: '3.1 km', matchScore: 82, bloodGroup: 'O-', verified: true, available: true },
+  { id: 'BB3', name: 'RedCare Blood Bank', type: 'bloodbank', city: 'Kolhapur', lat: 16.7180, lng: 74.2580, address: 'Nagala Park, Kolhapur', distance: '7.2 km', matchScore: 75, units: 3, bloodGroups: ['A+', 'B+', 'AB+'], verified: true, available: false },
+  { id: 'BB4', name: 'District Blood Centre', type: 'bloodbank', city: 'Sangli', lat: 16.8524, lng: 74.5815, address: 'Civil Hospital Campus, Sangli', distance: '9.5 km', matchScore: 68, units: 2, bloodGroups: ['O+', 'AB+'], verified: false, available: true }
+];
+
 // Swiggy-Style Live Delivery Tracking Component
 function EnhancedGoogleMapsLiveTracking() {
   const { navigate, currentRequest, showToast } = YH();
@@ -3479,6 +3508,7 @@ function EnhancedGoogleMapsLiveTracking() {
 
   const mapContainerRef = D.useRef(null);
   const [mapsLoaded, setMapsLoaded] = D.useState(false);
+  const [mapError, setMapError] = D.useState(null);
   const mapInstanceRef = D.useRef(null);
   const courierMarkerRef = D.useRef(null);
   const routePointsRef = D.useRef([]);
@@ -3492,117 +3522,121 @@ function EnhancedGoogleMapsLiveTracking() {
   // Initialize Swiggy Google Map
   D.useEffect(() => {
     let active = true;
-    const apiKey = getGoogleMapsApiKey() || 'AIzaSyCbmgzXaAv6EJgHWBsLctKK0cScYagMI0M';
+    const apiKey = getGoogleMapsApiKey();
 
     loadGoogleMapsApi(apiKey).then((maps) => {
       if (!active || !mapContainerRef.current) return;
-      setMapsLoaded(true);
+      try {
+        setMapsLoaded(true);
 
-      const centerLat = (sourceCoords.lat + hospitalCoords.lat) / 2;
-      const centerLng = (sourceCoords.lng + hospitalCoords.lng) / 2;
+        const centerLat = (sourceCoords.lat + hospitalCoords.lat) / 2;
+        const centerLng = (sourceCoords.lng + hospitalCoords.lng) / 2;
 
-      const map = new maps.Map(mapContainerRef.current, {
-        center: { lat: centerLat, lng: centerLng },
-        zoom: 13,
-        styles: SWIGGY_CLEAN_MAP_STYLE,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true
-      });
-      mapInstanceRef.current = map;
+        const map = new maps.Map(mapContainerRef.current, {
+          center: { lat: centerLat, lng: centerLng },
+          zoom: 13,
+          styles: SWIGGY_CLEAN_MAP_STYLE,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true
+        });
+        mapInstanceRef.current = map;
 
-      // Hospital Marker
-      new maps.Marker({
-        position: hospitalCoords,
-        map: map,
-        title: req.hospital,
-        icon: {
-          url: SWIGGY_HOSPITAL_SVG,
-          scaledSize: new maps.Size(52, 52),
-          anchor: new maps.Point(26, 26)
-        }
-      });
-
-      // Blood Bank Origin Marker
-      new maps.Marker({
-        position: sourceCoords,
-        map: map,
-        title: req.allocatedBank,
-        icon: {
-          url: SWIGGY_BLOODBANK_SVG,
-          scaledSize: new maps.Size(50, 50),
-          anchor: new maps.Point(25, 25)
-        }
-      });
-
-      // Swiggy Courier Marker
-      const courierMarker = new maps.Marker({
-        position: sourceCoords,
-        map: map,
-        title: 'Emergency Courier Partner (Sunil Shinde)',
-        icon: {
-          url: SWIGGY_COURIER_SVG,
-          scaledSize: new maps.Size(60, 60),
-          anchor: new maps.Point(30, 30)
-        }
-      });
-      courierMarkerRef.current = courierMarker;
-
-      // Polylines
-      traveledPolylineRef.current = new maps.Polyline({
-        map: map,
-        strokeColor: '#0d9488',
-        strokeWeight: 6,
-        strokeOpacity: 0.95
-      });
-
-      remainingPolylineRef.current = new maps.Polyline({
-        map: map,
-        strokeColor: '#0f2447',
-        strokeWeight: 4,
-        strokeOpacity: 0.6
-      });
-
-      // Directions Service
-      const directionsService = new maps.DirectionsService();
-      directionsService.route(
-        {
-          origin: sourceCoords,
-          destination: hospitalCoords,
-          travelMode: maps.TravelMode.DRIVING
-        },
-        (result, status) => {
-          if (status === maps.DirectionsStatus.OK && result) {
-            const path = result.routes[0].overview_path;
-            routePointsRef.current = path;
-
-            // Set initial polylines
-            remainingPolylineRef.current.setPath(path);
-            traveledPolylineRef.current.setPath([path[0]]);
-            courierMarker.setPosition(path[0]);
-
-            // Adjust bounds
-            const bounds = new maps.LatLngBounds();
-            path.forEach((pt) => bounds.extend(pt));
-            map.fitBounds(bounds, 50);
-          } else {
-            const steps = 40;
-            const pts = [];
-            for (let i = 0; i <= steps; i++) {
-              const r = i / steps;
-              pts.push(new maps.LatLng(
-                sourceCoords.lat + (hospitalCoords.lat - sourceCoords.lat) * r,
-                sourceCoords.lng + (hospitalCoords.lng - sourceCoords.lng) * r
-              ));
-            }
-            routePointsRef.current = pts;
-            remainingPolylineRef.current.setPath(pts);
-            traveledPolylineRef.current.setPath([pts[0]]);
+        // Hospital Marker
+        new maps.Marker({
+          position: hospitalCoords,
+          map: map,
+          title: req.hospital,
+          icon: {
+            url: SWIGGY_HOSPITAL_SVG,
+            scaledSize: new maps.Size(52, 52),
+            anchor: new maps.Point(26, 26)
           }
-        }
-      );
+        });
+
+        // Blood Bank Origin Marker
+        new maps.Marker({
+          position: sourceCoords,
+          map: map,
+          title: req.allocatedBank,
+          icon: {
+            url: SWIGGY_BLOODBANK_SVG,
+            scaledSize: new maps.Size(50, 50),
+            anchor: new maps.Point(25, 25)
+          }
+        });
+
+        // Swiggy Courier Marker
+        const courierMarker = new maps.Marker({
+          position: sourceCoords,
+          map: map,
+          title: 'Emergency Courier Partner (Sunil Shinde)',
+          icon: {
+            url: SWIGGY_COURIER_SVG,
+            scaledSize: new maps.Size(60, 60),
+            anchor: new maps.Point(30, 30)
+          }
+        });
+        courierMarkerRef.current = courierMarker;
+
+        // Polylines
+        traveledPolylineRef.current = new maps.Polyline({
+          map: map,
+          strokeColor: '#0d9488',
+          strokeWeight: 6,
+          strokeOpacity: 0.95
+        });
+
+        remainingPolylineRef.current = new maps.Polyline({
+          map: map,
+          strokeColor: '#0f2447',
+          strokeWeight: 4,
+          strokeOpacity: 0.6
+        });
+
+        // Directions Service
+        const directionsService = new maps.DirectionsService();
+        directionsService.route(
+          {
+            origin: sourceCoords,
+            destination: hospitalCoords,
+            travelMode: maps.TravelMode.DRIVING
+          },
+          (result, status) => {
+            if (status === maps.DirectionsStatus.OK && result) {
+              const path = result.routes[0].overview_path;
+              routePointsRef.current = path;
+
+              remainingPolylineRef.current.setPath(path);
+              traveledPolylineRef.current.setPath([path[0]]);
+              courierMarker.setPosition(path[0]);
+
+              const bounds = new maps.LatLngBounds();
+              path.forEach((pt) => bounds.extend(pt));
+              map.fitBounds(bounds, 50);
+            } else {
+              const steps = 40;
+              const pts = [];
+              for (let i = 0; i <= steps; i++) {
+                const r = i / steps;
+                pts.push(new maps.LatLng(
+                  sourceCoords.lat + (hospitalCoords.lat - sourceCoords.lat) * r,
+                  sourceCoords.lng + (hospitalCoords.lng - sourceCoords.lng) * r
+                ));
+              }
+              routePointsRef.current = pts;
+              remainingPolylineRef.current.setPath(pts);
+              traveledPolylineRef.current.setPath([pts[0]]);
+            }
+          }
+        );
+      } catch (err) {
+        console.warn('Map initialization caught error:', err);
+        setMapError(err.message);
+      }
     }).catch((err) => {
       console.warn('Swiggy maps load error:', err);
+      setMapError(err.message);
     });
 
     return () => { active = false; };
@@ -3675,7 +3709,6 @@ function EnhancedGoogleMapsLiveTracking() {
   return (0, M.jsxDEV)('div', {
     className: 'min-h-screen bg-slate-50 flex flex-col',
     children: [
-      // Top Navigation Bar
       (0, M.jsxDEV)('header', {
         className: 'bg-navy-800 text-white px-6 py-3.5 flex items-center justify-between shadow-md z-10',
         children: [
@@ -3683,6 +3716,7 @@ function EnhancedGoogleMapsLiveTracking() {
             className: 'flex items-center gap-3',
             children: [
               (0, M.jsxDEV)('button', {
+                type: 'button',
                 onClick: () => navigate('hospital'),
                 className: 'px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors',
                 children: ['←', ' Hospital']
@@ -3702,16 +3736,19 @@ function EnhancedGoogleMapsLiveTracking() {
             className: 'flex items-center gap-2',
             children: [
               (0, M.jsxDEV)('button', {
+                type: 'button',
                 onClick: handleCenterCourier,
                 className: 'px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-teal-200 border border-teal-400/30 transition-colors flex items-center gap-1',
                 children: ['🎯', ' Recenter Courier']
               }),
               (0, M.jsxDEV)('button', {
+                type: 'button',
                 onClick: () => setIsMoving(!isMoving),
                 className: `px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isMoving ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`,
                 children: isMoving ? '⏸ Pause Transit (Simulation)' : '▶ Resume Movement'
               }),
               deliveryStatus !== 'delivered' && (0, M.jsxDEV)('button', {
+                type: 'button',
                 onClick: handleMarkDelivered,
                 className: 'px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-colors shadow-sm',
                 children: '✓ Mark as Delivered'
@@ -3725,7 +3762,6 @@ function EnhancedGoogleMapsLiveTracking() {
       (0, M.jsxDEV)('div', {
         className: 'flex-1 relative overflow-hidden flex flex-col md:flex-row',
         children: [
-          // Google Maps Canvas
           (0, M.jsxDEV)('div', {
             className: 'flex-1 relative h-[50vh] md:h-auto bg-slate-100',
             children: [
@@ -3736,12 +3772,12 @@ function EnhancedGoogleMapsLiveTracking() {
               }),
 
               // Graceful GPS Telemetry fallback display
-              (!mapsLoaded) && (0, M.jsxDEV)('div', {
-                className: 'absolute inset-0 bg-slate-100/95 flex flex-col items-center justify-center p-6 text-center',
+              (!mapsLoaded || mapError) && (0, M.jsxDEV)('div', {
+                className: 'absolute inset-0 bg-slate-100/95 flex flex-col items-center justify-center p-6 text-center z-10',
                 children: [
                   (0, M.jsxDEV)('span', { className: 'text-3xl mb-2', children: '📍' }),
                   (0, M.jsxDEV)('div', { className: 'font-bold text-navy-800 text-sm', children: 'Graceful GPS Telemetry fallback display active' }),
-                  (0, M.jsxDEV)('p', { className: 'text-xs text-slate-500 mt-1', children: 'Connecting to Google Maps GPS satellites...' })
+                  (0, M.jsxDEV)('p', { className: 'text-xs text-slate-500 mt-1', children: 'Realtime GPS Route Telemetry Active • Live tracking simulation streaming' })
                 ]
               }),
 
@@ -3776,10 +3812,9 @@ function EnhancedGoogleMapsLiveTracking() {
                       (0, M.jsxDEV)('div', {
                         className: 'flex items-center justify-between gap-1 overflow-x-auto pb-1',
                         children: ['Created', 'Matching', 'Match Found', 'Accepted', 'Blood Prepared', 'In Transit', 'Arriving', 'Delivered'].map((stage, idx) => (0, M.jsxDEV)('span', {
-                          key: stage,
                           className: `px-1.5 py-0.5 rounded text-[9px] font-semibold whitespace-nowrap ${(idx <= (deliveryStatus === 'delivered' ? 7 : deliveryStatus === 'arriving' ? 6 : 5)) ? 'bg-teal-600 text-white' : 'bg-slate-200 text-slate-600'}`,
                           children: stage
-                        }))
+                        }, stage))
                       })
                     ]
                   }),
@@ -3826,6 +3861,7 @@ function EnhancedGoogleMapsLiveTracking() {
                             ]
                           }),
                           (0, M.jsxDEV)('button', {
+                            type: 'button',
                             onClick: () => showToast('Calling courier Sunil Shinde (+91 98450 11223)...', 'info'),
                             className: 'w-10 h-10 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-700 flex items-center justify-center text-lg border border-teal-200 transition-colors',
                             title: 'Call Courier',
@@ -3898,11 +3934,13 @@ function EnhancedGoogleMapsLiveTracking() {
                 className: 'pt-4 border-t border-slate-200 mt-4 flex items-center gap-2',
                 children: [
                   (0, M.jsxDEV)('button', {
+                    type: 'button',
                     onClick: () => navigate('hospital'),
                     className: 'flex-1 py-2.5 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors',
                     children: 'Hospital Portal'
                   }),
                   (0, M.jsxDEV)('button', {
+                    type: 'button',
                     onClick: handleMarkDelivered,
                     className: 'flex-1 py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-colors shadow-sm',
                     children: '✓ Confirm Handover'
@@ -3929,87 +3967,79 @@ function EnhancedGoogleMapsResourceMap() {
   const markersMapRef = D.useRef({});
   const circlesRef = D.useRef([]);
 
-  const selectedItem = D.useMemo(() => dH.find((e) => e.id === selectedId) || dH[0], [selectedId]);
+  const facilitiesList = DEFAULT_MAP_FACILITIES;
+  const selectedItem = D.useMemo(() => facilitiesList.find((e) => e.id === selectedId) || facilitiesList[0], [selectedId]);
 
-  const resourceGPS = D.useMemo(() => ({
-    'H1': { lat: 16.7050, lng: 74.2433, title: 'City Hospital (Emergency)' },
-    'BB1': { lat: 16.6980, lng: 74.2380, title: 'City Blood Bank' },
-    'BB2': { lat: 16.7120, lng: 74.2510, title: 'Lifeline Blood Centre' },
-    'D1': { lat: 16.7010, lng: 74.2450, title: 'Rajesh Kumar (Donor)' },
-    'BB3': { lat: 16.7180, lng: 74.2580, title: 'RedCare Blood Bank' },
-    'BB4': { lat: 16.8524, lng: 74.5815, title: 'District Blood Centre (Sangli)' }
-  }), []);
-
-  // Initialize Real Google Map for Resource Map
   D.useEffect(() => {
     if (viewMode !== 'google_maps') return;
     let active = true;
-    const apiKey = getGoogleMapsApiKey() || 'AIzaSyCbmgzXaAv6EJgHWBsLctKK0cScYagMI0M';
+    const apiKey = getGoogleMapsApiKey();
 
     loadGoogleMapsApi(apiKey).then((maps) => {
       if (!active || !mapContainerRef.current) return;
 
-      const center = { lat: 16.7050, lng: 74.2433 };
-      const map = new maps.Map(mapContainerRef.current, {
-        center: center,
-        zoom: 12,
-        styles: SWIGGY_CLEAN_MAP_STYLE,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true
-      });
-      mapInstanceRef.current = map;
+      try {
+        const center = { lat: 16.7050, lng: 74.2433 };
+        const map = new maps.Map(mapContainerRef.current, {
+          center: center,
+          zoom: 12,
+          styles: SWIGGY_CLEAN_MAP_STYLE,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true
+        });
+        mapInstanceRef.current = map;
 
-      // Draw Radius Circles (5 km & 10 km)
-      const circle5 = new maps.Circle({
-        strokeColor: '#0d9488',
-        strokeOpacity: 0.8,
-        strokeWeight: 2,
-        fillColor: '#0d9488',
-        fillOpacity: 0.08,
-        map: map,
-        center: center,
-        radius: 5000
-      });
-      const circle10 = new maps.Circle({
-        strokeColor: '#0f2447',
-        strokeOpacity: 0.6,
-        strokeWeight: 1.5,
-        fillColor: '#0f2447',
-        fillOpacity: 0.04,
-        map: map,
-        center: center,
-        radius: 10000
-      });
-      circlesRef.current = [circle5, circle10];
-
-      // Create Markers for dH resources
-      dH.forEach((res) => {
-        const coords = resourceGPS[res.id] || { lat: 16.7050, lng: 74.2433 };
-        let iconUrl = SWIGGY_BLOODBANK_SVG;
-        if (res.type === 'hospital') iconUrl = SWIGGY_HOSPITAL_SVG;
-        else if (res.type === 'donor') iconUrl = SWIGGY_DONOR_SVG;
-
-        const marker = new maps.Marker({
-          position: coords,
+        const circle5 = new maps.Circle({
+          strokeColor: '#0d9488',
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          fillColor: '#0d9488',
+          fillOpacity: 0.08,
           map: map,
-          title: res.name,
-          icon: {
-            url: iconUrl,
-            scaledSize: new maps.Size(46, 46),
-            anchor: new maps.Point(23, 23)
-          }
+          center: center,
+          radius: 5000
         });
-
-        marker.addListener('click', () => {
-          setSelectedId(res.id);
-          map.panTo(coords);
-          showToast(`Selected ${res.name}`, 'info');
+        const circle10 = new maps.Circle({
+          strokeColor: '#0f2447',
+          strokeOpacity: 0.6,
+          strokeWeight: 1.5,
+          fillColor: '#0f2447',
+          fillOpacity: 0.04,
+          map: map,
+          center: center,
+          radius: 10000
         });
+        circlesRef.current = [circle5, circle10];
 
-        markersMapRef.current[res.id] = marker;
-      });
+        facilitiesList.forEach((res) => {
+          const coords = { lat: res.lat, lng: res.lng };
+          let iconUrl = SWIGGY_BLOODBANK_SVG;
+          if (res.type === 'hospital') iconUrl = SWIGGY_HOSPITAL_SVG;
+          else if (res.type === 'donor') iconUrl = SWIGGY_DONOR_SVG;
 
+          const marker = new maps.Marker({
+            position: coords,
+            map: map,
+            title: res.name,
+            icon: {
+              url: iconUrl,
+              scaledSize: new maps.Size(46, 46),
+              anchor: new maps.Point(23, 23)
+            }
+          });
+
+          marker.addListener('click', () => {
+            setSelectedId(res.id);
+            map.panTo(coords);
+            showToast && showToast(`Selected ${res.name}`, 'info');
+          });
+
+          markersMapRef.current[res.id] = marker;
+        });
+      } catch (err) {
+        console.warn('Resource map init error:', err);
+      }
     }).catch((err) => {
       console.warn('Resource map error:', err);
     });
@@ -4018,10 +4048,10 @@ function EnhancedGoogleMapsResourceMap() {
   }, [viewMode]);
 
   D.useEffect(() => {
-    if (mapInstanceRef.current && resourceGPS[selectedId]) {
-      mapInstanceRef.current.panTo(resourceGPS[selectedId]);
+    if (mapInstanceRef.current && selectedItem) {
+      mapInstanceRef.current.panTo({ lat: selectedItem.lat, lng: selectedItem.lng });
     }
-  }, [selectedId]);
+  }, [selectedId, selectedItem]);
 
   return (0, M.jsxDEV)(PV, {
     title: 'Nearby Resources',
@@ -4032,16 +4062,11 @@ function EnhancedGoogleMapsResourceMap() {
         (0, M.jsxDEV)('div', {
           className: 'flex-1 relative bg-slate-100 min-h-[450px] lg:min-h-full overflow-hidden',
           children: [
-            viewMode === 'google_maps' ? (0, M.jsxDEV)('div', {
+            (0, M.jsxDEV)('div', {
               ref: mapContainerRef,
               id: 'google-maps-resource-canvas',
               className: 'w-full h-full min-h-[450px]'
-            }) : (
-              (0, M.jsxDEV)('div', {
-                className: 'w-full h-full flex items-center justify-center bg-slate-50',
-                children: (0, M.jsxDEV)('span', { className: 'text-slate-400 text-sm', children: 'Schematic View Active' })
-              })
-            ),
+            }),
 
             // Top Bar: Filters + View Mode Switcher
             (0, M.jsxDEV)('div', {
@@ -4080,11 +4105,7 @@ function EnhancedGoogleMapsResourceMap() {
                   className: 'bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-md p-1.5 flex items-center gap-1',
                   children: [
                     (0, M.jsxDEV)('button', {
-                      onClick: () => setViewMode('google_maps'),
-                      className: `px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'google_maps' ? 'bg-navy-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`,
-                      children: '🗺️ Google Map'
-                    }),
-                    (0, M.jsxDEV)('button', {
+                      type: 'button',
                       onClick: () => navigate('request-tracking'),
                       className: 'px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-xs flex items-center gap-1',
                       children: ['🚨', ' Live Courier Tracking']
@@ -4156,8 +4177,7 @@ function EnhancedGoogleMapsResourceMap() {
                   className: 'space-y-2 pt-2',
                   children: [
                     (0, M.jsxDEV)('span', { className: 'text-xs font-bold text-slate-500 uppercase tracking-wider block', children: 'Nearby Network Facilities' }),
-                    dH.map(res => (0, M.jsxDEV)('button', {
-                      key: res.id,
+                    facilitiesList.map(res => (0, M.jsxDEV)('button', {
                       type: 'button',
                       onClick: () => setSelectedId(res.id),
                       className: `w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all text-xs ${selectedId === res.id ? 'bg-teal-50/80 border-teal-500 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'}`,
@@ -4170,7 +4190,7 @@ function EnhancedGoogleMapsResourceMap() {
                         }),
                         selectedId === res.id && (0, M.jsxDEV)('span', { className: 'text-teal-700 font-bold', children: '✓ Selected' })
                       ]
-                    }))
+                    }, res.id))
                   ]
                 })
               ]
@@ -4181,11 +4201,13 @@ function EnhancedGoogleMapsResourceMap() {
               className: 'pt-4 border-t border-slate-200 mt-4 space-y-2',
               children: [
                 (0, M.jsxDEV)('button', {
+                  type: 'button',
                   onClick: () => navigate('request-tracking'),
                   className: 'w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5',
                   children: ['🚨', ' Track Live Blood Delivery']
                 }),
                 (0, M.jsxDEV)('button', {
+                  type: 'button',
                   onClick: () => navigate('hospital'),
                   className: 'w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-xs transition-colors',
                   children: 'Back to Hospital Dashboard'
