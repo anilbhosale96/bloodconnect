@@ -10,6 +10,12 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      window.VITE_GOOGLE_MAPS_API_KEY = "%VITE_GOOGLE_MAPS_API_KEY%";
+      if (window.VITE_GOOGLE_MAPS_API_KEY.startsWith('%')) {
+        window.VITE_GOOGLE_MAPS_API_KEY = "";
+      }
+    </script>
     <script type="module" src="/assets/figma.js"></script>
   </body>
 </html>
