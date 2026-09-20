@@ -51,9 +51,15 @@ export default function Signup() {
         return
       }
 
-      // If user has an active session immediately (auto-confirm enabled)
+      // If user has an active session immediately (auto-confirm enabled or rate-limit fallback)
       if (data?.session) {
-        setSuccessMessage('Account created successfully! Redirecting to your dashboard...')
+        if (data?.rateLimitBypassed) {
+          setSuccessMessage(
+            'Supabase email rate limit reached on free tier. Instant session activated for testing! Redirecting to your dashboard...'
+          )
+        } else {
+          setSuccessMessage('Account created successfully! Redirecting to your dashboard...')
+        }
         setTimeout(() => {
           redirectByRole(role)
         }, 1200)
@@ -115,13 +121,34 @@ export default function Signup() {
           {error && (
             <div
               role="alert"
-              className="mb-6 flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm"
+              className="mb-6 flex flex-col gap-2.5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm"
             >
-              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <span className="font-semibold block">Registration Error</span>
-                <p className="mt-0.5 leading-relaxed">{error}</p>
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-semibold block">Registration Error</span>
+                  <p className="mt-0.5 leading-relaxed">{error}</p>
+                </div>
               </div>
+
+              {error.toLowerCase().includes('rate limit') && (
+                <div className="mt-2 pt-2.5 border-t border-red-200/70 text-xs text-red-900 space-y-1.5">
+                  <p className="font-semibold">How to fix in Supabase:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-red-800">
+                    <li>Go to Supabase Dashboard &gt; <strong>Authentication</strong> &gt; <strong>Providers</strong> &gt; <strong>Email</strong></li>
+                    <li>Turn off <strong>&quot;Confirm email&quot;</strong> and click <strong>Save</strong></li>
+                  </ol>
+                  <div className="pt-2">
+                    <Link
+                      to="/login"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-xs transition-colors"
+                    >
+                      <span>Use 1-Click Demo Logins instead</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
