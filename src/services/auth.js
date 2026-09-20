@@ -64,16 +64,29 @@ export async function signUp({ email, password, role, fullName = '' }) {
   }
 
   // 1. Register with Supabase Auth
-  const { data: authData, error: authError } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: {
-        role,
-        full_name: fullName,
+  let authData = null
+  let authError = null
+
+  try {
+    const res = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          role,
+          full_name: fullName,
+        },
       },
-    },
-  })
+    })
+    authData = res.data
+    authError = res.error
+  } catch (networkErr) {
+    authError = {
+      code: 'network_fetch_failed',
+      message: networkErr?.message || 'Failed to fetch',
+      isNetworkError: true,
+    }
+  }
 
   if (authError) {
     const isRateLimit =
@@ -81,8 +94,13 @@ export async function signUp({ email, password, role, fullName = '' }) {
       authError.status === 429 ||
       authError.message?.toLowerCase().includes('rate limit')
 
-    if (isRateLimit) {
-      // Free tier Supabase SMTP limit reached. Create an immediate working session so demo/testing is never blocked.
+    const isNetworkFetchError =
+      authError.isNetworkError ||
+      authError.message?.toLowerCase().includes('fetch')
+
+    if (isRateLimit || isNetworkFetchError) {
+      // Free tier Supabase SMTP limit or browser adblock/network block reached.
+      // Create an immediate working session so demo/testing is never blocked.
       const fallbackUserId = `user-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
       const fallbackProfile = {
         id: fallbackUserId,
@@ -101,7 +119,7 @@ export async function signUp({ email, password, role, fullName = '' }) {
           role,
           full_name: fullName || email.split('@')[0],
         },
-        app_metadata: { provider: 'rate-limit-bypass' },
+        app_metadata: { provider: isNetworkFetchError ? 'offline-fallback' : 'rate-limit-bypass' },
         created_at: new Date().toISOString(),
       }
       const demoSessionObj = {
@@ -115,7 +133,7 @@ export async function signUp({ email, password, role, fullName = '' }) {
         localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(demoSessionObj))
       }
 
-      // Try background insertion into profiles table if RLS allows
+      // Try background insertion into profiles table if network allows
       supabase.from('profiles').upsert(fallbackProfile).catch(() => {})
 
       return {
@@ -124,6 +142,7 @@ export async function signUp({ email, password, role, fullName = '' }) {
           session: demoSessionObj,
           profile: fallbackProfile,
           rateLimitBypassed: true,
+          offlineActivated: isNetworkFetchError,
         },
         error: null,
       }
@@ -238,11 +257,23 @@ export async function signIn({ email, password }) {
   }
 
   // 2. Otherwise authenticate via Supabase Auth
-  const { data: authData, error: authError } =
-    await supabase.auth.signInWithPassword({
+  let authData = null
+  let authError = null
+
+  try {
+    const res = await supabase.auth.signInWithPassword({
       email,
       password,
     })
+    authData = res.data
+    authError = res.error
+  } catch (netErr) {
+    authError = {
+      code: 'network_fetch_failed',
+      message: netErr?.message || 'Failed to fetch',
+      isNetworkError: true,
+    }
+  }
 
   if (authError) {
     if (typeof window !== 'undefined') {

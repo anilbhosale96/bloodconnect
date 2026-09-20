@@ -139,7 +139,6 @@ export async function respondToEmergencyRequest({
           .update({
             reserved_units: newReserved,
             available_units: newAvailable,
-            count: newAvailable,
           })
           .eq('id', item.id)
       }

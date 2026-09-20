@@ -65,7 +65,6 @@ export async function updateInventoryItem({
       component_type,
       available_units: Math.max(0, parseInt(available_units, 10) || 0),
       reserved_units: Math.max(0, parseInt(reserved_units, 10) || 0),
-      count: Math.max(0, parseInt(available_units, 10) || 0),
     }
 
     if (id) {

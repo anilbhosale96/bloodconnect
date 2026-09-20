@@ -51,11 +51,13 @@ export default function Signup() {
         return
       }
 
-      // If user has an active session immediately (auto-confirm enabled or rate-limit fallback)
+      // If user has an active session immediately (auto-confirm enabled or rate-limit/offline fallback)
       if (data?.session) {
         if (data?.rateLimitBypassed) {
           setSuccessMessage(
-            'Supabase email rate limit reached on free tier. Instant session activated for testing! Redirecting to your dashboard...'
+            data?.offlineActivated
+              ? 'Database network request blocked by browser ad-blocker or firewall. Instant offline demo session activated! Redirecting...'
+              : 'Supabase email rate limit reached on free tier. Instant session activated for testing! Redirecting to your dashboard...'
           )
         } else {
           setSuccessMessage('Account created successfully! Redirecting to your dashboard...')
@@ -144,6 +146,29 @@ export default function Signup() {
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-xs transition-colors"
                     >
                       <span>Use 1-Click Demo Logins instead</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {error.toLowerCase().includes('fetch') && (
+                <div className="mt-2 pt-2.5 border-t border-red-200/70 text-xs text-red-900 space-y-1.5">
+                  <p className="font-semibold">Why this happens:</p>
+                  <p className="text-red-800">
+                    An ad-blocker (Brave Shields, uBlock Origin, Privacy Badger) or strict network firewall is blocking the browser from reaching the Supabase database.
+                  </p>
+                  <p className="font-semibold pt-1">Quick Fixes:</p>
+                  <ul className="list-disc list-inside space-y-1 text-red-800">
+                    <li>Turn off <strong>Brave Shields / AdBlock</strong> for this site, or</li>
+                    <li>Use the 1-Click Demo Login to instantly access any dashboard without database blocks.</li>
+                  </ul>
+                  <div className="pt-2">
+                    <Link
+                      to="/login"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium text-xs transition-colors"
+                    >
+                      <span>Go to 1-Click Demo Logins</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   </div>
