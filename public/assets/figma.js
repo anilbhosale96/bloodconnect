@@ -3325,24 +3325,26 @@ function EnhancedSmartMatching() {
 }
 
 
-// ==================== BLOODCONNECT GOOGLE MAPS LIVE TRACKING ENGINE ====================
 
-// Read API Key from environment or window
+
+// ==================== SWIGGY-STYLE GOOGLE MAPS ENGINE ====================
+
+// Read API Key with user fallback
 function getGoogleMapsApiKey() {
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GOOGLE_MAPS_API_KEY) {
     return import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   }
   if (typeof window !== 'undefined') {
-    if (window.VITE_GOOGLE_MAPS_API_KEY) return window.VITE_GOOGLE_MAPS_API_KEY;
+    if (window.VITE_GOOGLE_MAPS_API_KEY && !window.VITE_GOOGLE_MAPS_API_KEY.startsWith('%')) return window.VITE_GOOGLE_MAPS_API_KEY;
     try {
       const stored = localStorage.getItem('VITE_GOOGLE_MAPS_API_KEY');
       if (stored) return stored;
     } catch (e) {}
   }
-  return '';
+  return 'AIzaSyCbmgzXaAv6EJgHWBsLctKK0cScYagMI0M';
 }
 
-// Dynamically load Google Maps script if not already present
+// Dynamically load Google Maps script
 let googleMapsLoadingPromise = null;
 function loadGoogleMapsApi(apiKey) {
   if (typeof window === 'undefined') return Promise.reject(new Error('Window not defined'));
@@ -3352,10 +3354,6 @@ function loadGoogleMapsApi(apiKey) {
   if (googleMapsLoadingPromise) return googleMapsLoadingPromise;
 
   const key = apiKey || getGoogleMapsApiKey();
-  if (!key) {
-    return Promise.reject(new Error('VITE_GOOGLE_MAPS_API_KEY is not configured in environment.'));
-  }
-
   googleMapsLoadingPromise = new Promise((resolve, reject) => {
     const scriptId = 'google-maps-platform-script';
     if (document.getElementById(scriptId)) {
@@ -3382,7 +3380,7 @@ function loadGoogleMapsApi(apiKey) {
       }
     };
     script.onerror = (err) => {
-      reject(new Error('Failed to load Google Maps JavaScript API script.'));
+      reject(new Error('Failed to load Google Maps API.'));
     };
     document.head.appendChild(script);
   });
@@ -3390,143 +3388,183 @@ function loadGoogleMapsApi(apiKey) {
   return googleMapsLoadingPromise;
 }
 
-// Delivery Lifecycle Stages per Requirement 6 & 7
-const DELIVERY_LIFECYCLE_STAGES = [
-  { key: 'created', label: 'Created', desc: 'Emergency request initiated' },
-  { key: 'matching', label: 'Matching', desc: 'Scanning compatible verified resources' },
-  { key: 'match_found', label: 'Match Found', desc: 'Compatible resources identified' },
-  { key: 'accepted', label: 'Accepted', desc: 'Blood bank confirmed allocation' },
-  { key: 'blood_prepared', label: 'Blood Prepared', desc: 'Units cross-matched and packaged' },
-  { key: 'in_transit', label: 'In Transit', desc: 'Courier en route to hospital' },
-  { key: 'arriving', label: 'Arriving', desc: 'Approaching hospital emergency dock (< 500m)' },
-  { key: 'delivered', label: 'Delivered', desc: 'Transfusion handover completed' }
+const SWIGGY_COURIER_SVG = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60">
+  <circle cx="30" cy="30" r="28" fill="#0d9488" fill-opacity="0.25">
+    <animate attributeName="r" values="24;28;24" dur="1.4s" repeatCount="indefinite"/>
+    <animate attributeName="fill-opacity" values="0.35;0.1;0.35" dur="1.4s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="30" cy="30" r="21" fill="#0f2447" stroke="#ffffff" stroke-width="2.5"/>
+  <g transform="translate(16, 16) scale(0.95)">
+    <circle cx="5" cy="22" r="4.5" fill="#e2e8f0" stroke="#0f2447" stroke-width="1.5"/>
+    <circle cx="24" cy="22" r="4.5" fill="#e2e8f0" stroke="#0f2447" stroke-width="1.5"/>
+    <circle cx="5" cy="22" r="1.5" fill="#0f2447"/>
+    <circle cx="24" cy="22" r="1.5" fill="#0f2447"/>
+    <path d="M5 22 L10 14 L17 14 L22 22" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <rect x="2" y="8" width="9" height="8" rx="2" fill="#ef4444" stroke="#ffffff" stroke-width="1.2"/>
+    <path d="M6.5 10 V14 M4.5 12 H8.5" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+    <circle cx="16" cy="7" r="4" fill="#0d9488" stroke="#ffffff" stroke-width="1"/>
+    <circle cx="21" cy="4" r="3" fill="#ef4444">
+      <animate attributeName="fill" values="#ef4444;#fbbf24;#ef4444" dur="0.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>
+`);
+
+const SWIGGY_HOSPITAL_SVG = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
+  <circle cx="26" cy="26" r="24" fill="#dc2626" fill-opacity="0.2"/>
+  <circle cx="26" cy="26" r="19" fill="#dc2626" stroke="#ffffff" stroke-width="3"/>
+  <path d="M26 15 V37 M15 26 H37" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>
+</svg>
+`);
+
+const SWIGGY_BLOODBANK_SVG = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50">
+  <circle cx="25" cy="25" r="23" fill="#0284c7" fill-opacity="0.2"/>
+  <circle cx="25" cy="25" r="18" fill="#0f2447" stroke="#38bdf8" stroke-width="2.5"/>
+  <text x="25" y="30" font-size="16" text-anchor="middle" fill="#ffffff">🏦</text>
+</svg>
+`);
+
+const SWIGGY_DONOR_SVG = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44">
+  <circle cx="22" cy="22" r="20" fill="#059669" fill-opacity="0.2"/>
+  <circle cx="22" cy="22" r="15" fill="#059669" stroke="#ffffff" stroke-width="2.5"/>
+  <text x="22" y="27" font-size="13" font-weight="bold" text-anchor="middle" fill="#ffffff">🩸</text>
+</svg>
+`);
+
+const SWIGGY_CLEAN_MAP_STYLE = [
+  { featureType: "administrative", elementType: "labels.text.fill", stylers: [{ color: "#334155" }] },
+  { featureType: "landscape", elementType: "all", stylers: [{ color: "#f8fafc" }] },
+  { featureType: "poi", elementType: "all", stylers: [{ visibility: "off" }] },
+  { featureType: "poi.medical", elementType: "all", stylers: [{ visibility: "on" }] },
+  { featureType: "road", elementType: "all", stylers: [{ saturation: -100 }, { lightness: 45 }] },
+  { featureType: "road.highway", elementType: "all", stylers: [{ visibility: "simplified" }] },
+  { featureType: "road.highway", elementType: "geometry.fill", stylers: [{ color: "#fed7aa" }] },
+  { featureType: "road.arterial", elementType: "geometry.fill", stylers: [{ color: "#ffffff" }] },
+  { featureType: "transit", elementType: "all", stylers: [{ visibility: "off" }] },
+  { featureType: "water", elementType: "all", stylers: [{ color: "#bae6fd" }, { visibility: "on" }] }
 ];
 
-// Enhanced Google Maps Live Tracking Component
+// Swiggy-Style Live Delivery Tracking Component
 function EnhancedGoogleMapsLiveTracking() {
   const { navigate, currentRequest, showToast } = YH();
 
-  // Current request with intelligent defaults
   const req = D.useMemo(() => {
     return currentRequest || {
       id: 'BR-2026-00125',
       bloodGroup: 'AB+',
-      component: 'RBC',
+      component: 'Packed Red Blood Cells',
       units: 2,
       priority: 'critical',
       hospital: 'Manipal Emergency & Trauma Care',
-      location: '98 HAL Old Airport Road, Indiranagar',
+      location: 'Old Airport Road, Indiranagar, Bangalore',
       city: 'Bangalore',
-      allocatedBank: 'City Blood Bank',
+      allocatedBank: 'Metro Central Blood Bank',
       allocatedGroup: 'AB+',
       allocatedUnits: 2,
       status: 'in_transit'
     };
   }, [currentRequest]);
 
-  // Delivery status state machine
   const [deliveryStatus, setDeliveryStatus] = D.useState(req.status === 'delivered' ? 'delivered' : 'in_transit');
-  const [isDemoTracking, setIsDemoTracking] = D.useState(true);
   const [isMoving, setIsMoving] = D.useState(true);
+  const [distanceRemaining, setDistanceRemaining] = D.useState(1.8);
+  const [etaMinutes, setEtaMinutes] = D.useState(6);
+  const [stepIndex, setStepIndex] = D.useState(0);
+  const [courierSpeed, setCourierSpeed] = D.useState(38);
+  const [temperature, setTemperature] = D.useState(4.2);
 
-  // Dynamic Telemetry Metrics
-  const [distanceRemaining, setDistanceRemaining] = D.useState(2.4);
-  const [etaMinutes, setEtaMinutes] = D.useState(8);
-  const [lastUpdated, setLastUpdated] = D.useState('Just now');
-  const [progressPercent, setProgressPercent] = D.useState(45);
-
-  // Google Maps state
-  const mapRef = D.useRef(null);
+  const mapContainerRef = D.useRef(null);
   const [mapsLoaded, setMapsLoaded] = D.useState(false);
-  const [mapError, setMapError] = D.useState(null);
-  const googleMapInstance = D.useRef(null);
+  const mapInstanceRef = D.useRef(null);
   const courierMarkerRef = D.useRef(null);
-  const hospitalMarkerRef = D.useRef(null);
-  const directionsRendererRef = D.useRef(null);
+  const routePointsRef = D.useRef([]);
+  const traveledPolylineRef = D.useRef(null);
+  const remainingPolylineRef = D.useRef(null);
 
-  // Coordinates:
-  // Hospital Destination: Manipal Hospital Indiranagar (12.9592, 77.6534)
+  // Coordinates
   const hospitalCoords = D.useMemo(() => ({ lat: 12.9592, lng: 77.6534 }), []);
-  // Blood Bank Source: City Blood Bank / Vasanth Nagar (12.9716, 77.5946)
   const sourceCoords = D.useMemo(() => ({ lat: 12.9716, lng: 77.5946 }), []);
 
-  // Initialize Google Maps
+  // Initialize Swiggy Google Map
   D.useEffect(() => {
-    let isMounted = true;
-    const apiKey = getGoogleMapsApiKey();
+    let active = true;
+    const apiKey = getGoogleMapsApiKey() || 'AIzaSyCbmgzXaAv6EJgHWBsLctKK0cScYagMI0M';
 
     loadGoogleMapsApi(apiKey).then((maps) => {
-      if (!isMounted || !mapRef.current) return;
+      if (!active || !mapContainerRef.current) return;
       setMapsLoaded(true);
 
-      // Create Map
       const centerLat = (sourceCoords.lat + hospitalCoords.lat) / 2;
       const centerLng = (sourceCoords.lng + hospitalCoords.lng) / 2;
 
-      const map = new maps.Map(mapRef.current, {
+      const map = new maps.Map(mapContainerRef.current, {
         center: { lat: centerLat, lng: centerLng },
         zoom: 13,
+        styles: SWIGGY_CLEAN_MAP_STYLE,
         mapTypeControl: false,
         streetViewControl: false,
-        fullscreenControl: true,
-        styles: [
-          { featureType: 'poi.medical', stylers: [{ visibility: 'on' }] },
-          { featureType: 'transit', stylers: [{ visibility: 'simplified' }] }
-        ]
+        fullscreenControl: true
       });
-      googleMapInstance.current = map;
+      mapInstanceRef.current = map;
 
-      // Hospital Destination Marker
-      const hospMarker = new maps.Marker({
+      // Hospital Marker
+      new maps.Marker({
         position: hospitalCoords,
         map: map,
-        title: req.hospital || 'Hospital Emergency Dock',
+        title: req.hospital,
         icon: {
-          path: maps.SymbolPath.CIRCLE,
-          scale: 12,
-          fillColor: '#dc2626',
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 3
+          url: SWIGGY_HOSPITAL_SVG,
+          scaledSize: new maps.Size(52, 52),
+          anchor: new maps.Point(26, 26)
         }
       });
-      hospitalMarkerRef.current = hospMarker;
 
-      // Courier Moving Marker
-      const initialCourierPos = {
-        lat: sourceCoords.lat + (hospitalCoords.lat - sourceCoords.lat) * (progressPercent / 100),
-        lng: sourceCoords.lng + (hospitalCoords.lng - sourceCoords.lng) * (progressPercent / 100)
-      };
-
-      const courierMarker = new maps.Marker({
-        position: initialCourierPos,
+      // Blood Bank Origin Marker
+      new maps.Marker({
+        position: sourceCoords,
         map: map,
-        title: `Emergency Courier (${req.allocatedBank || 'Blood Bank'})`,
+        title: req.allocatedBank,
         icon: {
-          path: maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          scale: 7,
-          fillColor: '#0d9488',
-          fillOpacity: 1,
-          strokeColor: '#ffffff',
-          strokeWeight: 2,
-          rotation: 125
+          url: SWIGGY_BLOODBANK_SVG,
+          scaledSize: new maps.Size(50, 50),
+          anchor: new maps.Point(25, 25)
+        }
+      });
+
+      // Swiggy Courier Marker
+      const courierMarker = new maps.Marker({
+        position: sourceCoords,
+        map: map,
+        title: 'Emergency Courier Partner (Sunil Shinde)',
+        icon: {
+          url: SWIGGY_COURIER_SVG,
+          scaledSize: new maps.Size(60, 60),
+          anchor: new maps.Point(30, 30)
         }
       });
       courierMarkerRef.current = courierMarker;
 
-      // Request Driving Route using DirectionsService
-      const directionsService = new maps.DirectionsService();
-      const directionsRenderer = new maps.DirectionsRenderer({
+      // Polylines
+      traveledPolylineRef.current = new maps.Polyline({
         map: map,
-        suppressMarkers: true,
-        polylineOptions: {
-          strokeColor: '#0f2447',
-          strokeWeight: 5,
-          strokeOpacity: 0.8
-        }
+        strokeColor: '#0d9488',
+        strokeWeight: 6,
+        strokeOpacity: 0.95
       });
-      directionsRendererRef.current = directionsRenderer;
 
+      remainingPolylineRef.current = new maps.Polyline({
+        map: map,
+        strokeColor: '#0f2447',
+        strokeWeight: 4,
+        strokeOpacity: 0.6
+      });
+
+      // Directions Service
+      const directionsService = new maps.DirectionsService();
       directionsService.route(
         {
           origin: sourceCoords,
@@ -3535,343 +3573,622 @@ function EnhancedGoogleMapsLiveTracking() {
         },
         (result, status) => {
           if (status === maps.DirectionsStatus.OK && result) {
-            directionsRenderer.setDirections(result);
+            const path = result.routes[0].overview_path;
+            routePointsRef.current = path;
+
+            // Set initial polylines
+            remainingPolylineRef.current.setPath(path);
+            traveledPolylineRef.current.setPath([path[0]]);
+            courierMarker.setPosition(path[0]);
+
+            // Adjust bounds
+            const bounds = new maps.LatLngBounds();
+            path.forEach((pt) => bounds.extend(pt));
+            map.fitBounds(bounds, 50);
           } else {
-            console.warn('Google Maps Directions service status:', status);
+            const steps = 40;
+            const pts = [];
+            for (let i = 0; i <= steps; i++) {
+              const r = i / steps;
+              pts.push(new maps.LatLng(
+                sourceCoords.lat + (hospitalCoords.lat - sourceCoords.lat) * r,
+                sourceCoords.lng + (hospitalCoords.lng - sourceCoords.lng) * r
+              ));
+            }
+            routePointsRef.current = pts;
+            remainingPolylineRef.current.setPath(pts);
+            traveledPolylineRef.current.setPath([pts[0]]);
           }
         }
       );
     }).catch((err) => {
-      if (!isMounted) return;
-      console.warn('Google Maps load notice:', err.message);
-      setMapError(err.message);
+      console.warn('Swiggy maps load error:', err);
     });
 
-    return () => {
-      isMounted = false;
-    };
-  }, [hospitalCoords, sourceCoords, req.hospital, req.allocatedBank]);
+    return () => { active = false; };
+  }, []);
 
-  // Live Location Movement Simulator (Demo Live Tracking / Periodic GPS updates)
+  // Swiggy-Style Smooth Animation Loop along Route Path
   D.useEffect(() => {
     if (!isMoving || deliveryStatus === 'delivered') return;
 
     const interval = setInterval(() => {
-      setProgressPercent((prev) => {
-        if (prev >= 98) {
+      const pts = routePointsRef.current;
+      if (!pts || pts.length === 0) return;
+
+      setStepIndex((prev) => {
+        const next = prev + 1;
+        if (next >= pts.length) {
           setDeliveryStatus('arriving');
-          setDistanceRemaining(0.2);
+          setDistanceRemaining(0.1);
           setEtaMinutes(1);
-          setLastUpdated('Just now');
-          return 98;
+          return pts.length - 1;
         }
 
-        const next = prev + 2.5;
-        const remainingKm = Math.max(0.1, parseFloat((2.4 * (1 - next / 100)).toFixed(1)));
-        const remainingMins = Math.max(1, Math.ceil(8 * (1 - next / 100)));
+        const currentPos = pts[next];
+        const progressFrac = next / pts.length;
+        const remainingKm = Math.max(0.1, parseFloat((3.8 * (1 - progressFrac)).toFixed(1)));
+        const remainingMins = Math.max(1, Math.ceil(12 * (1 - progressFrac)));
 
         setDistanceRemaining(remainingKm);
         setEtaMinutes(remainingMins);
-        setLastUpdated('Just now');
+        setCourierSpeed(Math.floor(32 + Math.random() * 12));
+        setTemperature(parseFloat((4.1 + Math.sin(next) * 0.2).toFixed(1)));
 
-        if (remainingKm <= 0.4 && deliveryStatus !== 'arriving') {
+        if (remainingKm <= 0.3 && deliveryStatus !== 'arriving') {
           setDeliveryStatus('arriving');
         }
 
-        // Update Google Maps marker position
-        if (courierMarkerRef.current && window.google && window.google.maps) {
-          const newLat = sourceCoords.lat + (hospitalCoords.lat - sourceCoords.lat) * (next / 100);
-          const newLng = sourceCoords.lng + (hospitalCoords.lng - sourceCoords.lng) * (next / 100);
-          courierMarkerRef.current.setPosition(new window.google.maps.LatLng(newLat, newLng));
+        if (courierMarkerRef.current) {
+          courierMarkerRef.current.setPosition(currentPos);
+        }
+        if (traveledPolylineRef.current) {
+          traveledPolylineRef.current.setPath(pts.slice(0, next + 1));
+        }
+        if (remainingPolylineRef.current) {
+          remainingPolylineRef.current.setPath(pts.slice(next));
         }
 
         return next;
       });
-    }, 2000);
+    }, 1200);
 
     return () => clearInterval(interval);
-  }, [isMoving, deliveryStatus, sourceCoords, hospitalCoords]);
-
-  // Control Actions for Authorized Source & Hospital Handover
-  const handleStartDelivery = () => {
-    setDeliveryStatus('in_transit');
-    setIsMoving(true);
-    showToast('Delivery started! Live GPS telemetry is now broadcasting.', 'success');
-  };
-
-  const handleStopDelivery = () => {
-    setIsMoving(false);
-    showToast('Delivery telemetry paused.', 'info');
-  };
+  }, [isMoving, deliveryStatus]);
 
   const handleMarkDelivered = () => {
     setDeliveryStatus('delivered');
-    setIsMoving(false);
-    setProgressPercent(100);
     setDistanceRemaining(0);
     setEtaMinutes(0);
-    setLastUpdated('Completed at ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-
-    // Record delivery in history
-    try {
-      const history = JSON.parse(localStorage.getItem('bloodconnect_delivery_history') || '[]');
-      history.unshift({
-        requestId: req.id,
-        hospital: req.hospital,
-        source: req.allocatedBank || 'City Blood Bank',
-        bloodGroup: req.bloodGroup,
-        component: req.component,
-        units: req.units,
-        deliveredAt: new Date().toISOString(),
-        status: 'DELIVERED'
-      });
-      localStorage.setItem('bloodconnect_delivery_history', JSON.stringify(history));
-    } catch (e) {}
-
-    showToast('Blood delivery successfully completed and handed over to hospital!', 'success');
+    setIsMoving(false);
+    showToast('Blood successfully handed over to hospital trauma dock!', 'success');
   };
 
-  // Determine current active lifecycle stage index
-  const activeStageIdx = D.useMemo(() => {
-    switch (deliveryStatus) {
-      case 'created': return 0;
-      case 'matching': return 1;
-      case 'match_found': return 2;
-      case 'accepted': return 3;
-      case 'blood_prepared': return 4;
-      case 'in_transit': return 5;
-      case 'arriving': return 6;
-      case 'delivered': return 7;
-      default: return 5;
+  const handleCenterCourier = () => {
+    const pts = routePointsRef.current;
+    if (mapInstanceRef.current && pts && pts[stepIndex]) {
+      mapInstanceRef.current.panTo(pts[stepIndex]);
+      mapInstanceRef.current.setZoom(15);
     }
-  }, [deliveryStatus]);
+  };
+
+  return (0, M.jsxDEV)('div', {
+    className: 'min-h-screen bg-slate-50 flex flex-col',
+    children: [
+      // Top Navigation Bar
+      (0, M.jsxDEV)('header', {
+        className: 'bg-navy-800 text-white px-6 py-3.5 flex items-center justify-between shadow-md z-10',
+        children: [
+          (0, M.jsxDEV)('div', {
+            className: 'flex items-center gap-3',
+            children: [
+              (0, M.jsxDEV)('button', {
+                onClick: () => navigate('hospital'),
+                className: 'px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors',
+                children: ['←', ' Hospital']
+              }),
+              (0, M.jsxDEV)('div', {
+                children: [
+                  (0, M.jsxDEV)('h1', { className: 'font-display font-bold text-base flex items-center gap-2', children: [
+                    'Swiggy-Style Live Blood Dispatch Tracking',
+                    (0, M.jsxDEV)('span', { className: 'px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 text-[10px] font-mono border border-teal-400/30 animate-pulse', children: 'GPS STREAMING' })
+                  ]}),
+                  (0, M.jsxDEV)('p', { className: 'text-xs text-white/60', children: [req.id, ' • ', req.hospital] })
+                ]
+              })
+            ]
+          }),
+          (0, M.jsxDEV)('div', {
+            className: 'flex items-center gap-2',
+            children: [
+              (0, M.jsxDEV)('button', {
+                onClick: handleCenterCourier,
+                className: 'px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold text-teal-200 border border-teal-400/30 transition-colors flex items-center gap-1',
+                children: ['🎯', ' Recenter Courier']
+              }),
+              (0, M.jsxDEV)('button', {
+                onClick: () => setIsMoving(!isMoving),
+                className: `px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isMoving ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}`,
+                children: isMoving ? '⏸ Pause Transit (Simulation)' : '▶ Resume Movement'
+              }),
+              deliveryStatus !== 'delivered' && (0, M.jsxDEV)('button', {
+                onClick: handleMarkDelivered,
+                className: 'px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-colors shadow-sm',
+                children: '✓ Mark as Delivered'
+              })
+            ]
+          })
+        ]
+      }),
+
+      // Main Live Tracking Content
+      (0, M.jsxDEV)('div', {
+        className: 'flex-1 relative overflow-hidden flex flex-col md:flex-row',
+        children: [
+          // Google Maps Canvas
+          (0, M.jsxDEV)('div', {
+            className: 'flex-1 relative h-[50vh] md:h-auto bg-slate-100',
+            children: [
+              (0, M.jsxDEV)('div', {
+                ref: mapContainerRef,
+                id: 'swiggy-google-maps-canvas',
+                className: 'w-full h-full'
+              }),
+
+              // Graceful GPS Telemetry fallback display
+              (!mapsLoaded) && (0, M.jsxDEV)('div', {
+                className: 'absolute inset-0 bg-slate-100/95 flex flex-col items-center justify-center p-6 text-center',
+                children: [
+                  (0, M.jsxDEV)('span', { className: 'text-3xl mb-2', children: '📍' }),
+                  (0, M.jsxDEV)('div', { className: 'font-bold text-navy-800 text-sm', children: 'Graceful GPS Telemetry fallback display active' }),
+                  (0, M.jsxDEV)('p', { className: 'text-xs text-slate-500 mt-1', children: 'Connecting to Google Maps GPS satellites...' })
+                ]
+              }),
+
+              // Live Floating Status Pill on Map
+              (0, M.jsxDEV)('div', {
+                className: 'absolute top-4 left-4 z-10 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-lg border border-slate-200 flex items-center gap-3',
+                children: [
+                  (0, M.jsxDEV)('div', { className: 'w-3 h-3 rounded-full bg-emerald-500 animate-ping' }),
+                  (0, M.jsxDEV)('div', {
+                    children: [
+                      (0, M.jsxDEV)('div', { className: 'text-[11px] font-bold text-navy-800 uppercase tracking-wider', children: 'Live Telemetry • Demo Tracking simulation' }),
+                      (0, M.jsxDEV)('div', { className: 'text-xs text-slate-600 font-semibold', children: [`Speed: ${courierSpeed} km/h • Temp: ${temperature}°C`] })
+                    ]
+                  })
+                ]
+              })
+            ]
+          }),
+
+          // Swiggy-Style Floating Bottom / Side Drawer
+          (0, M.jsxDEV)('div', {
+            className: 'w-full md:w-[420px] bg-white border-t md:border-t-0 md:border-l border-slate-200 p-6 flex flex-col justify-between overflow-y-auto shadow-2xl z-10',
+            children: [
+              (0, M.jsxDEV)('div', {
+                className: 'space-y-5',
+                children: [
+                  // 8-Stage Delivery Lifecycle
+                  (0, M.jsxDEV)('div', {
+                    className: 'p-3 rounded-xl bg-slate-50 border border-slate-200',
+                    children: [
+                      (0, M.jsxDEV)('div', { className: 'text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2', children: '8-Stage Delivery Lifecycle' }),
+                      (0, M.jsxDEV)('div', {
+                        className: 'flex items-center justify-between gap-1 overflow-x-auto pb-1',
+                        children: ['Created', 'Matching', 'Match Found', 'Accepted', 'Blood Prepared', 'In Transit', 'Arriving', 'Delivered'].map((stage, idx) => (0, M.jsxDEV)('span', {
+                          key: stage,
+                          className: `px-1.5 py-0.5 rounded text-[9px] font-semibold whitespace-nowrap ${(idx <= (deliveryStatus === 'delivered' ? 7 : deliveryStatus === 'arriving' ? 6 : 5)) ? 'bg-teal-600 text-white' : 'bg-slate-200 text-slate-600'}`,
+                          children: stage
+                        }))
+                      })
+                    ]
+                  }),
+
+                  // Swiggy Delivery Status Header
+                  (0, M.jsxDEV)('div', {
+                    className: 'p-4 rounded-2xl bg-gradient-to-br from-teal-50 to-navy-50/40 border border-teal-200/70',
+                    children: [
+                      (0, M.jsxDEV)('div', { className: 'flex items-center justify-between text-xs text-teal-700 font-bold uppercase tracking-wider mb-1', children: [
+                        (0, M.jsxDEV)('span', { className: 'flex items-center gap-1.5', children: [(0, M.jsxDEV)('span', { className: 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse' }), 'Emergency Courier in Transit'] }),
+                        (0, M.jsxDEV)('span', { children: [`${distanceRemaining} km away`] })
+                      ]}),
+                      (0, M.jsxDEV)('div', { className: 'font-display font-extrabold text-3xl text-navy-800 tracking-tight mt-1', children: [
+                        deliveryStatus === 'delivered' ? 'Blood Delivered! 🎉' : `Arriving in ~${etaMinutes} mins`
+                      ]}),
+                      (0, M.jsxDEV)('p', { className: 'text-xs text-slate-600 mt-1', children: 'Rapid green-corridor ambulance courier is en route to emergency reception dock.' })
+                    ]
+                  }),
+
+                  // Swiggy Delivery Partner Profile Card
+                  (0, M.jsxDEV)('div', {
+                    className: 'p-4 rounded-2xl border border-slate-200 bg-white shadow-xs',
+                    children: [
+                      (0, M.jsxDEV)('div', {
+                        className: 'flex items-center justify-between',
+                        children: [
+                          (0, M.jsxDEV)('div', {
+                            className: 'flex items-center gap-3',
+                            children: [
+                              (0, M.jsxDEV)('div', {
+                                className: 'w-12 h-12 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-lg shadow-sm',
+                                children: '🛵'
+                              }),
+                              (0, M.jsxDEV)('div', {
+                                children: [
+                                  (0, M.jsxDEV)('div', { className: 'font-bold text-sm text-navy-800', children: 'Sunil Shinde' }),
+                                  (0, M.jsxDEV)('div', { className: 'text-xs text-slate-500 flex items-center gap-1.5', children: [
+                                    (0, M.jsxDEV)('span', { className: 'text-amber-500 font-bold', children: '★ 4.96' }),
+                                    '• Certified Medical Courier'
+                                  ]}),
+                                  (0, M.jsxDEV)('div', { className: 'text-[11px] text-teal-700 font-mono font-medium', children: 'KA-04-ME-2026 (Electric Rapid Fleet)' })
+                                ]
+                              })
+                            ]
+                          }),
+                          (0, M.jsxDEV)('button', {
+                            onClick: () => showToast('Calling courier Sunil Shinde (+91 98450 11223)...', 'info'),
+                            className: 'w-10 h-10 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-700 flex items-center justify-center text-lg border border-teal-200 transition-colors',
+                            title: 'Call Courier',
+                            children: '📞'
+                          })
+                        ]
+                      })
+                    ]
+                  }),
+
+                  // Cold-Chain Temperature & Payload Card
+                  (0, M.jsxDEV)('div', {
+                    className: 'grid grid-cols-2 gap-3',
+                    children: [
+                      (0, M.jsxDEV)('div', {
+                        className: 'p-3.5 rounded-xl border border-slate-200 bg-slate-50',
+                        children: [
+                          (0, M.jsxDEV)('span', { className: 'text-[10px] text-slate-500 font-bold uppercase tracking-wider block', children: 'Blood Payload' }),
+                          (0, M.jsxDEV)('div', { className: 'font-bold text-sm text-navy-800 mt-0.5', children: [`${req.units} Units ${req.bloodGroup}`] }),
+                          (0, M.jsxDEV)('span', { className: 'text-[10px] text-slate-500', children: req.component })
+                        ]
+                      }),
+                      (0, M.jsxDEV)('div', {
+                        className: 'p-3.5 rounded-xl border border-slate-200 bg-emerald-50/50',
+                        children: [
+                          (0, M.jsxDEV)('span', { className: 'text-[10px] text-emerald-700 font-bold uppercase tracking-wider block', children: '❄️ Cold-Chain Temp' }),
+                          (0, M.jsxDEV)('div', { className: 'font-bold text-sm text-emerald-700 mt-0.5', children: [`${temperature}°C`] }),
+                          (0, M.jsxDEV)('span', { className: 'text-[10px] text-emerald-600 font-medium', children: 'Target: 2°C - 6°C (Optimal)' })
+                        ]
+                      })
+                    ]
+                  }),
+
+                  // Origin & Destination Stepper
+                  (0, M.jsxDEV)('div', {
+                    className: 'p-4 rounded-xl border border-slate-200 space-y-3',
+                    children: [
+                      (0, M.jsxDEV)('div', {
+                        className: 'flex items-start gap-3 text-xs',
+                        children: [
+                          (0, M.jsxDEV)('div', { className: 'w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs flex-shrink-0', children: '🏦' }),
+                          (0, M.jsxDEV)('div', {
+                            children: [
+                              (0, M.jsxDEV)('div', { className: 'font-bold text-navy-800', children: req.allocatedBank }),
+                              (0, M.jsxDEV)('div', { className: 'text-slate-500 text-[11px]', children: 'Vasanth Nagar Central Reserve • Dispatched' })
+                            ]
+                          })
+                        ]
+                      }),
+                      (0, M.jsxDEV)('div', { className: 'ml-3 border-l-2 border-dashed border-teal-500 h-6' }),
+                      (0, M.jsxDEV)('div', {
+                        className: 'flex items-start gap-3 text-xs',
+                        children: [
+                          (0, M.jsxDEV)('div', { className: 'w-6 h-6 rounded-full bg-red-100 text-red-700 flex items-center justify-center font-bold text-xs flex-shrink-0', children: '🏥' }),
+                          (0, M.jsxDEV)('div', {
+                            children: [
+                              (0, M.jsxDEV)('div', { className: 'font-bold text-navy-800', children: req.hospital }),
+                              (0, M.jsxDEV)('div', { className: 'text-slate-500 text-[11px]', children: 'Emergency Trauma Dock, Indiranagar' })
+                            ]
+                          })
+                        ]
+                      })
+                    ]
+                  })
+                ]
+              }),
+
+              // Action Footer
+              (0, M.jsxDEV)('div', {
+                className: 'pt-4 border-t border-slate-200 mt-4 flex items-center gap-2',
+                children: [
+                  (0, M.jsxDEV)('button', {
+                    onClick: () => navigate('hospital'),
+                    className: 'flex-1 py-2.5 px-3 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors',
+                    children: 'Hospital Portal'
+                  }),
+                  (0, M.jsxDEV)('button', {
+                    onClick: handleMarkDelivered,
+                    className: 'flex-1 py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-colors shadow-sm',
+                    children: '✓ Confirm Handover'
+                  })
+                ]
+              })
+            ]
+          })
+        ]
+      })
+    ]
+  });
+}
+
+// Enhanced Interactive Google Maps Resource Map Component for "map-view"
+function EnhancedGoogleMapsResourceMap() {
+  const { navigate, showToast } = YH();
+  const [selectedId, setSelectedId] = D.useState('H1');
+  const [filters, setFilters] = D.useState({ radius: '10', verified: false, available: true });
+  const [viewMode, setViewMode] = D.useState('google_maps');
+
+  const mapContainerRef = D.useRef(null);
+  const mapInstanceRef = D.useRef(null);
+  const markersMapRef = D.useRef({});
+  const circlesRef = D.useRef([]);
+
+  const selectedItem = D.useMemo(() => dH.find((e) => e.id === selectedId) || dH[0], [selectedId]);
+
+  const resourceGPS = D.useMemo(() => ({
+    'H1': { lat: 16.7050, lng: 74.2433, title: 'City Hospital (Emergency)' },
+    'BB1': { lat: 16.6980, lng: 74.2380, title: 'City Blood Bank' },
+    'BB2': { lat: 16.7120, lng: 74.2510, title: 'Lifeline Blood Centre' },
+    'D1': { lat: 16.7010, lng: 74.2450, title: 'Rajesh Kumar (Donor)' },
+    'BB3': { lat: 16.7180, lng: 74.2580, title: 'RedCare Blood Bank' },
+    'BB4': { lat: 16.8524, lng: 74.5815, title: 'District Blood Centre (Sangli)' }
+  }), []);
+
+  // Initialize Real Google Map for Resource Map
+  D.useEffect(() => {
+    if (viewMode !== 'google_maps') return;
+    let active = true;
+    const apiKey = getGoogleMapsApiKey() || 'AIzaSyCbmgzXaAv6EJgHWBsLctKK0cScYagMI0M';
+
+    loadGoogleMapsApi(apiKey).then((maps) => {
+      if (!active || !mapContainerRef.current) return;
+
+      const center = { lat: 16.7050, lng: 74.2433 };
+      const map = new maps.Map(mapContainerRef.current, {
+        center: center,
+        zoom: 12,
+        styles: SWIGGY_CLEAN_MAP_STYLE,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true
+      });
+      mapInstanceRef.current = map;
+
+      // Draw Radius Circles (5 km & 10 km)
+      const circle5 = new maps.Circle({
+        strokeColor: '#0d9488',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#0d9488',
+        fillOpacity: 0.08,
+        map: map,
+        center: center,
+        radius: 5000
+      });
+      const circle10 = new maps.Circle({
+        strokeColor: '#0f2447',
+        strokeOpacity: 0.6,
+        strokeWeight: 1.5,
+        fillColor: '#0f2447',
+        fillOpacity: 0.04,
+        map: map,
+        center: center,
+        radius: 10000
+      });
+      circlesRef.current = [circle5, circle10];
+
+      // Create Markers for dH resources
+      dH.forEach((res) => {
+        const coords = resourceGPS[res.id] || { lat: 16.7050, lng: 74.2433 };
+        let iconUrl = SWIGGY_BLOODBANK_SVG;
+        if (res.type === 'hospital') iconUrl = SWIGGY_HOSPITAL_SVG;
+        else if (res.type === 'donor') iconUrl = SWIGGY_DONOR_SVG;
+
+        const marker = new maps.Marker({
+          position: coords,
+          map: map,
+          title: res.name,
+          icon: {
+            url: iconUrl,
+            scaledSize: new maps.Size(46, 46),
+            anchor: new maps.Point(23, 23)
+          }
+        });
+
+        marker.addListener('click', () => {
+          setSelectedId(res.id);
+          map.panTo(coords);
+          showToast(`Selected ${res.name}`, 'info');
+        });
+
+        markersMapRef.current[res.id] = marker;
+      });
+
+    }).catch((err) => {
+      console.warn('Resource map error:', err);
+    });
+
+    return () => { active = false; };
+  }, [viewMode]);
+
+  D.useEffect(() => {
+    if (mapInstanceRef.current && resourceGPS[selectedId]) {
+      mapInstanceRef.current.panTo(resourceGPS[selectedId]);
+    }
+  }, [selectedId]);
 
   return (0, M.jsxDEV)(PV, {
-    title: 'Blood Delivery Tracking',
-    subtitle: `Live GPS Tracking • Request ${req.id}`,
+    title: 'Nearby Resources',
+    subtitle: 'Swiggy-Powered Realtime Google Maps Resource Radar',
     children: (0, M.jsxDEV)('div', {
-      className: 'p-4 sm:p-6 space-y-6 max-w-6xl mx-auto',
+      className: 'flex flex-col lg:flex-row h-full',
       children: [
-        // Top Emergency Header Bar
         (0, M.jsxDEV)('div', {
-          className: 'bg-navy-800 rounded-2xl p-5 text-white shadow-md',
+          className: 'flex-1 relative bg-slate-100 min-h-[450px] lg:min-h-full overflow-hidden',
           children: [
-            (0, M.jsxDEV)('div', {
-              className: 'flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10',
-              children: [
-                (0, M.jsxDEV)('div', {
-                  className: 'flex items-center gap-3',
-                  children: [
-                    (0, M.jsxDEV)('div', {
-                      className: 'w-12 h-12 rounded-xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center font-display font-bold text-xl text-teal-300',
-                      children: req.bloodGroup
-                    }),
-                    (0, M.jsxDEV)('div', {
-                      children: [
-                        (0, M.jsxDEV)('div', { className: 'font-display font-bold text-lg', children: [req.component, ' • ', req.units, ' Units'] }),
-                        (0, M.jsxDEV)('div', { className: 'text-white/60 text-xs', children: [req.hospital, ' • Ref: ', req.patientRef || 'PT-EMERG'] })
-                      ]
-                    })
-                  ]
-                }),
-                (0, M.jsxDEV)('div', {
-                  className: 'flex items-center gap-2',
-                  children: [
-                    (0, M.jsxDEV)('span', {
-                      className: `px-3 py-1 rounded-lg text-xs font-bold uppercase ${deliveryStatus === 'delivered' ? 'bg-teal-600' : 'bg-red-600 animate-pulse'}`,
-                      children: deliveryStatus === 'delivered' ? 'DELIVERED' : 'IN TRANSIT'
-                    }),
-                    isDemoTracking && (0, M.jsxDEV)('span', {
-                      className: 'px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-bold flex items-center gap-1',
-                      children: '🛰️ Demo Tracking'
-                    })
-                  ]
-                })
-              ]
-            }),
-
-            // Status Stepper (Requirement 6 & 7)
-            (0, M.jsxDEV)('div', {
-              className: 'pt-4 overflow-x-auto',
-              children: (0, M.jsxDEV)('div', {
-                className: 'flex items-center justify-between min-w-[620px]',
-                children: [
-                  { label: 'Request Accepted', completed: activeStageIdx >= 3 },
-                  { label: 'Blood Prepared', completed: activeStageIdx >= 4 },
-                  { label: 'In Transit', current: activeStageIdx === 5, completed: activeStageIdx > 5 },
-                  { label: 'Arriving', current: activeStageIdx === 6, completed: activeStageIdx > 6 },
-                  { label: 'Delivered', completed: activeStageIdx >= 7 }
-                ].map((stg, sIdx) => (0, M.jsxDEV)('div', {
-                  className: 'flex items-center gap-2',
-                  children: [
-                    (0, M.jsxDEV)('div', {
-                      className: `w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${stg.completed ? 'bg-teal-500 text-navy-900 shadow-sm' : stg.current ? 'bg-red-500 text-white animate-pulse ring-4 ring-red-500/20' : 'bg-white/10 text-white/40'}`,
-                      children: stg.completed ? '✓' : stg.current ? '●' : '○'
-                    }),
-                    (0, M.jsxDEV)('span', {
-                      className: `text-xs font-semibold whitespace-nowrap ${stg.completed ? 'text-teal-300 font-bold' : stg.current ? 'text-white font-bold' : 'text-white/40'}`,
-                      children: stg.label
-                    }),
-                    sIdx < 4 && (0, M.jsxDEV)('div', { className: `w-8 sm:w-12 h-0.5 mx-1.5 ${stg.completed ? 'bg-teal-500' : 'bg-white/10'}` })
-                  ]
-                }, stg.label))
+            viewMode === 'google_maps' ? (0, M.jsxDEV)('div', {
+              ref: mapContainerRef,
+              id: 'google-maps-resource-canvas',
+              className: 'w-full h-full min-h-[450px]'
+            }) : (
+              (0, M.jsxDEV)('div', {
+                className: 'w-full h-full flex items-center justify-center bg-slate-50',
+                children: (0, M.jsxDEV)('span', { className: 'text-slate-400 text-sm', children: 'Schematic View Active' })
               })
-            })
-          ]
-        }),
+            ),
 
-        // Live Telemetry Cards
-        (0, M.jsxDEV)('div', {
-          className: 'grid grid-cols-2 lg:grid-cols-4 gap-4',
-          children: [
+            // Top Bar: Filters + View Mode Switcher
             (0, M.jsxDEV)('div', {
-              className: 'p-4 rounded-xl bg-white border border-slate-200 shadow-sm',
-              children: [
-                (0, M.jsxDEV)('span', { className: 'text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1', children: 'Distance Remaining' }),
-                (0, M.jsxDEV)('div', { className: 'font-display font-bold text-2xl text-navy-800', children: [`${distanceRemaining} km`] }),
-                (0, M.jsxDEV)('span', { className: 'text-[11px] text-teal-600 font-medium', children: 'Direct GPS route' })
-              ]
-            }),
-            (0, M.jsxDEV)('div', {
-              className: 'p-4 rounded-xl bg-white border border-slate-200 shadow-sm',
-              children: [
-                (0, M.jsxDEV)('span', { className: 'text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1', children: 'Estimated Arrival' }),
-                (0, M.jsxDEV)('div', { className: 'font-display font-bold text-2xl text-red-600', children: [etaMinutes > 0 ? `~${etaMinutes} min` : 'Arrived'] }),
-                (0, M.jsxDEV)('span', { className: 'text-[11px] text-slate-500 font-medium', children: 'Live traffic computed' })
-              ]
-            }),
-            (0, M.jsxDEV)('div', {
-              className: 'p-4 rounded-xl bg-white border border-slate-200 shadow-sm',
-              children: [
-                (0, M.jsxDEV)('span', { className: 'text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1', children: 'Source Facility' }),
-                (0, M.jsxDEV)('div', { className: 'font-display font-bold text-base text-navy-800 truncate', children: req.allocatedBank || 'City Blood Bank' }),
-                (0, M.jsxDEV)('span', { className: 'text-[11px] text-teal-600 font-semibold', children: '✓ Verified Blood Bank' })
-              ]
-            }),
-            (0, M.jsxDEV)('div', {
-              className: 'p-4 rounded-xl bg-white border border-slate-200 shadow-sm',
-              children: [
-                (0, M.jsxDEV)('span', { className: 'text-xs text-slate-500 font-semibold uppercase tracking-wider block mb-1', children: 'Telemetry Status' }),
-                (0, M.jsxDEV)('div', { className: 'font-display font-bold text-base text-emerald-600 flex items-center gap-1.5', children: [
-                  (0, M.jsxDEV)('span', { className: 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse' }),
-                  isMoving ? 'Streaming' : 'Paused'
-                ]}),
-                (0, M.jsxDEV)('span', { className: 'text-[11px] text-slate-500', children: [`Updated: ${lastUpdated}`] })
-              ]
-            })
-          ]
-        }),
-
-        // Main Map Container (Google Maps or Graceful Vector Fallback per Requirement 13)
-        (0, M.jsxDEV)('div', {
-          className: 'bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm',
-          children: [
-            // Map Top Toolbar
-            (0, M.jsxDEV)('div', {
-              className: 'p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50',
+              className: 'absolute top-4 left-4 z-10 flex flex-wrap items-center gap-2',
               children: [
                 (0, M.jsxDEV)('div', {
-                  className: 'flex items-center gap-2',
+                  className: 'bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-md p-3 space-y-2 min-w-44',
                   children: [
-                    (0, M.jsxDEV)('span', { className: 'text-base', children: '🗺️' }),
-                    (0, M.jsxDEV)('span', { className: 'font-display font-bold text-navy-800 text-sm', children: 'Google Maps Live GPS Navigation' }),
-                    (0, M.jsxDEV)('span', { className: 'text-xs text-slate-500', children: '(Directions & Route Geometry)' })
+                    (0, M.jsxDEV)('div', { className: 'text-xs font-bold text-navy-800 uppercase tracking-wider', children: 'Search Radius' }),
+                    (0, M.jsxDEV)('select', {
+                      value: filters.radius,
+                      onChange: (e) => setFilters(prev => ({ ...prev, radius: e.target.value })),
+                      className: 'w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700',
+                      children: [
+                        (0, M.jsxDEV)('option', { value: '5', children: 'Within 5 km' }),
+                        (0, M.jsxDEV)('option', { value: '10', children: 'Within 10 km' }),
+                        (0, M.jsxDEV)('option', { value: '25', children: 'Within 25 km' })
+                      ]
+                    }),
+                    (0, M.jsxDEV)('label', {
+                      className: 'flex items-center gap-2 text-xs text-slate-600 cursor-pointer pt-1',
+                      children: [
+                        (0, M.jsxDEV)('input', {
+                          type: 'checkbox',
+                          checked: filters.available,
+                          onChange: (e) => setFilters(prev => ({ ...prev, available: e.target.checked })),
+                          className: 'rounded text-teal-600 focus:ring-teal-500'
+                        }),
+                        'Available Now'
+                      ]
+                    })
                   ]
                 }),
 
-                // Interactive Demo & Tracking Controls (Requirement 5 & 8)
                 (0, M.jsxDEV)('div', {
-                  className: 'flex items-center gap-2',
+                  className: 'bg-white/95 backdrop-blur-md rounded-xl border border-slate-200 shadow-md p-1.5 flex items-center gap-1',
                   children: [
                     (0, M.jsxDEV)('button', {
-                      type: 'button',
-                      onClick: () => setIsMoving(!isMoving),
-                      className: `px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${isMoving ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'}`,
-                      children: isMoving ? '⏸ Pause Simulation' : '▶ Resume Movement'
+                      onClick: () => setViewMode('google_maps'),
+                      className: `px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'google_maps' ? 'bg-navy-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`,
+                      children: '🗺️ Google Map'
                     }),
-                    deliveryStatus !== 'delivered' && (0, M.jsxDEV)('button', {
-                      type: 'button',
-                      onClick: handleMarkDelivered,
-                      className: 'px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-colors shadow-sm',
-                      children: '✓ Mark as Delivered'
+                    (0, M.jsxDEV)('button', {
+                      onClick: () => navigate('request-tracking'),
+                      className: 'px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-xs flex items-center gap-1',
+                      children: ['🚨', ' Live Courier Tracking']
                     })
                   ]
                 })
               ]
             }),
 
-            // Interactive Map Display
+            // Map Legend Overlay
             (0, M.jsxDEV)('div', {
-              className: 'relative h-[420px] w-full bg-slate-100 flex items-center justify-center',
+              className: 'absolute bottom-4 left-4 z-10 bg-white/90 backdrop-blur-md rounded-xl border border-slate-200 shadow-md p-2.5 flex items-center gap-4 text-xs font-semibold text-slate-700',
               children: [
-                // Google Maps Canvas
+                (0, M.jsxDEV)('div', { className: 'flex items-center gap-1.5', children: [(0, M.jsxDEV)('span', { className: 'w-3 h-3 rounded-full bg-red-600' }), 'Hospital'] }),
+                (0, M.jsxDEV)('div', { className: 'flex items-center gap-1.5', children: [(0, M.jsxDEV)('span', { className: 'w-3 h-3 rounded-full bg-navy-800' }), 'Blood Bank'] }),
+                (0, M.jsxDEV)('div', { className: 'flex items-center gap-1.5', children: [(0, M.jsxDEV)('span', { className: 'w-3 h-3 rounded-full bg-emerald-600' }), 'Donor'] })
+              ]
+            })
+          ]
+        }),
+
+        // Right Resource Details Sidebar
+        (0, M.jsxDEV)('div', {
+          className: 'w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-6 flex flex-col justify-between overflow-y-auto',
+          children: [
+            (0, M.jsxDEV)('div', {
+              className: 'space-y-4',
+              children: [
                 (0, M.jsxDEV)('div', {
-                  ref: mapRef,
-                  id: 'google-maps-tracking-canvas',
-                  className: 'w-full h-full'
+                  className: 'flex items-center justify-between pb-3 border-b border-slate-100',
+                  children: [
+                    (0, M.jsxDEV)('span', { className: 'text-xs font-bold text-slate-500 uppercase tracking-wider', children: 'Selected Facility' }),
+                    (0, M.jsxDEV)('span', {
+                      className: `px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${selectedItem.type === 'hospital' ? 'bg-red-50 text-red-700 border border-red-200' : selectedItem.type === 'bloodbank' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`,
+                      children: selectedItem.type
+                    })
+                  ]
                 }),
 
-                // Graceful Fallback Banner if Google Maps API key unverified (Requirement 13)
-                (!mapsLoaded || mapError) && (0, M.jsxDEV)('div', {
-                  className: 'absolute inset-0 bg-slate-50/95 p-6 flex flex-col items-center justify-center text-center space-y-4 backdrop-blur-sm',
+                (0, M.jsxDEV)('div', {
                   children: [
-                    (0, M.jsxDEV)('div', { className: 'w-14 h-14 rounded-full bg-teal-50 border border-teal-200 text-teal-600 flex items-center justify-center text-2xl', children: '📍' }),
+                    (0, M.jsxDEV)('h2', { className: 'font-display font-bold text-xl text-navy-800', children: selectedItem.name }),
+                    (0, M.jsxDEV)('p', { className: 'text-xs text-slate-500 mt-1', children: [`${selectedItem.city || 'Kolhapur'}, Maharashtra • ${selectedItem.distance || 'Near Hospital'}`] })
+                  ]
+                }),
+
+                (0, M.jsxDEV)('div', {
+                  className: 'grid grid-cols-2 gap-2.5',
+                  children: [
                     (0, M.jsxDEV)('div', {
+                      className: 'p-3 rounded-xl bg-slate-50 border border-slate-200',
                       children: [
-                        (0, M.jsxDEV)('h3', { className: 'font-display font-bold text-navy-800 text-lg', children: 'Realtime GPS Route Telemetry Active' }),
-                        (0, M.jsxDEV)('p', { className: 'text-xs text-slate-500 max-w-md mx-auto mt-1', children: 'Google Maps Directions telemetry is streaming coordinates. To enable Google vector tiles on custom domains, configure VITE_GOOGLE_MAPS_API_KEY in environment settings.' })
+                        (0, M.jsxDEV)('span', { className: 'text-[10px] text-slate-500 font-bold uppercase', children: 'Units Available' }),
+                        (0, M.jsxDEV)('div', { className: 'font-display font-bold text-lg text-teal-700', children: [selectedItem.units ? `${selectedItem.units} Units` : 'Universal (O-)'] })
                       ]
                     }),
                     (0, M.jsxDEV)('div', {
-                      className: 'p-4 rounded-xl bg-white border border-slate-200 shadow-sm w-full max-w-lg text-left grid grid-cols-2 gap-3 text-xs',
+                      className: 'p-3 rounded-xl bg-slate-50 border border-slate-200',
                       children: [
-                        (0, M.jsxDEV)('div', { children: [(0, M.jsxDEV)('span', { className: 'text-slate-400 block', children: 'Dispatch Source' }), (0, M.jsxDEV)('span', { className: 'font-bold text-navy-800', children: req.allocatedBank || 'City Blood Bank' }), (0, M.jsxDEV)('span', { className: 'text-[10px] text-slate-500 block', children: 'Rajaram Road, Vasanth Nagar' })] }),
-                        (0, M.jsxDEV)('div', { children: [(0, M.jsxDEV)('span', { className: 'text-slate-400 block', children: 'Emergency Destination' }), (0, M.jsxDEV)('span', { className: 'font-bold text-navy-800', children: req.hospital || 'Hospital Emergency Wing' }), (0, M.jsxDEV)('span', { className: 'text-[10px] text-slate-500 block', children: 'Indiranagar, Bangalore' })] }),
-                        (0, M.jsxDEV)('div', { children: [(0, M.jsxDEV)('span', { className: 'text-slate-400 block', children: 'Remaining Distance' }), (0, M.jsxDEV)('span', { className: 'font-bold text-teal-700 text-sm', children: [`${distanceRemaining} km`] })] }),
-                        (0, M.jsxDEV)('div', { children: [(0, M.jsxDEV)('span', { className: 'text-slate-400 block', children: 'Estimated Arrival' }), (0, M.jsxDEV)('span', { className: 'font-bold text-red-600 text-sm', children: [etaMinutes > 0 ? `~${etaMinutes} min` : 'Arrived'] })] })
+                        (0, M.jsxDEV)('span', { className: 'text-[10px] text-slate-500 font-bold uppercase', children: 'Match Score' }),
+                        (0, M.jsxDEV)('div', { className: 'font-display font-bold text-lg text-navy-800', children: [selectedItem.matchScore ? `${selectedItem.matchScore}%` : 'High Priority'] })
                       ]
                     })
+                  ]
+                }),
+
+                // Facility Quick Directory
+                (0, M.jsxDEV)('div', {
+                  className: 'space-y-2 pt-2',
+                  children: [
+                    (0, M.jsxDEV)('span', { className: 'text-xs font-bold text-slate-500 uppercase tracking-wider block', children: 'Nearby Network Facilities' }),
+                    dH.map(res => (0, M.jsxDEV)('button', {
+                      key: res.id,
+                      type: 'button',
+                      onClick: () => setSelectedId(res.id),
+                      className: `w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all text-xs ${selectedId === res.id ? 'bg-teal-50/80 border-teal-500 shadow-xs' : 'bg-white border-slate-200 hover:border-slate-300'}`,
+                      children: [
+                        (0, M.jsxDEV)('div', {
+                          children: [
+                            (0, M.jsxDEV)('div', { className: 'font-bold text-navy-800', children: res.name }),
+                            (0, M.jsxDEV)('div', { className: 'text-[11px] text-slate-500', children: [`${res.distance || '0 km'} • ${res.type}`] })
+                          ]
+                        }),
+                        selectedId === res.id && (0, M.jsxDEV)('span', { className: 'text-teal-700 font-bold', children: '✓ Selected' })
+                      ]
+                    }))
                   ]
                 })
               ]
             }),
 
-            // Route Progress Bar
+            // Action Buttons
             (0, M.jsxDEV)('div', {
-              className: 'p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs',
+              className: 'pt-4 border-t border-slate-200 mt-4 space-y-2',
               children: [
-                (0, M.jsxDEV)('div', {
-                  className: 'flex-1 mr-4',
-                  children: [
-                    (0, M.jsxDEV)('div', { className: 'flex justify-between font-semibold text-slate-600 mb-1', children: [
-                      (0, M.jsxDEV)('span', { children: `Delivery Progress: ${Math.round(progressPercent)}%` }),
-                      (0, M.jsxDEV)('span', { children: deliveryStatus === 'delivered' ? 'Completed' : `${distanceRemaining} km to destination` })
-                    ]}),
-                    (0, M.jsxDEV)('div', {
-                      className: 'w-full h-2 rounded-full bg-slate-200 overflow-hidden',
-                      children: (0, M.jsxDEV)('div', {
-                        className: 'h-full bg-gradient-to-r from-teal-500 to-navy-800 transition-all duration-500',
-                        style: { width: `${progressPercent}%` }
-                      })
-                    })
-                  ]
+                (0, M.jsxDEV)('button', {
+                  onClick: () => navigate('request-tracking'),
+                  className: 'w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-1.5',
+                  children: ['🚨', ' Track Live Blood Delivery']
                 }),
-                (0, M.jsxDEV)('div', {
-                  className: 'flex items-center gap-2 flex-shrink-0',
-                  children: [
-                    (0, M.jsxDEV)('button', {
-                      onClick: () => navigate('hospital'),
-                      className: 'px-4 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-slate-700 hover:bg-slate-50 transition-colors',
-                      children: '← Hospital Dashboard'
-                    }),
-                    (0, M.jsxDEV)('button', {
-                      onClick: () => {
-                        showToast('Hospital emergency department notified of imminent courier arrival!', 'success');
-                      },
-                      className: 'px-4 py-2 bg-navy-800 hover:bg-navy-700 text-white rounded-xl font-semibold transition-colors shadow-sm',
-                      children: '📢 Alert Emergency Dock'
-                    })
-                  ]
+                (0, M.jsxDEV)('button', {
+                  onClick: () => navigate('hospital'),
+                  className: 'w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-xs transition-colors',
+                  children: 'Back to Hospital Dashboard'
                 })
               ]
             })
@@ -3882,7 +4199,7 @@ function EnhancedGoogleMapsLiveTracking() {
   });
 }
 
-var $H={landing:Yt,login:EnhancedLoginPage,register:RegisterPage,hospital:ZV,"create-request":EnhancedCreateEmergencyRequest,"smart-matching":EnhancedSmartMatching,"map-view":pH,"request-tracking":EnhancedGoogleMapsLiveTracking,"blood-availability":xH,bloodbank:wH,"emergency-response":DH,donor:kH,admin:NH,demo:IH,notifications:zH,history:BH,analytics:VH,verification:WH,profile:EnhancedProfile};function eU(){
+$H={landing:Yt,login:EnhancedLoginPage,register:RegisterPage,hospital:ZV,"create-request":EnhancedCreateEmergencyRequest,"smart-matching":EnhancedSmartMatching,"map-view":EnhancedGoogleMapsResourceMap,"request-tracking":EnhancedGoogleMapsLiveTracking,"blood-availability":xH,bloodbank:wH,"emergency-response":DH,donor:kH,admin:NH,demo:IH,notifications:zH,history:BH,analytics:VH,verification:WH,profile:EnhancedProfile};function eU(){
   // Determine initial route from URL path or hash
   let initialRoute = 'landing';
   if (typeof window !== 'undefined') {

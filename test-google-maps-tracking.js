@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log('--- BloodConnect Google Maps Live Tracking Test Suite ---');
+console.log('--- BloodConnect Swiggy-Style Google Maps Live Tracking Test Suite ---');
 
 let passed = 0;
 let failed = 0;
@@ -39,27 +39,36 @@ const figmaContent = fs.readFileSync(figmaJsPath, 'utf8');
 assert(figmaContent.includes('getGoogleMapsApiKey'), 'getGoogleMapsApiKey function present');
 assert(figmaContent.includes('loadGoogleMapsApi'), 'loadGoogleMapsApi function present');
 assert(figmaContent.includes('EnhancedGoogleMapsLiveTracking'), 'EnhancedGoogleMapsLiveTracking component defined');
+assert(figmaContent.includes('EnhancedGoogleMapsResourceMap'), 'EnhancedGoogleMapsResourceMap component defined');
 assert(figmaContent.includes('"request-tracking":EnhancedGoogleMapsLiveTracking'), 'Router maps request-tracking to EnhancedGoogleMapsLiveTracking');
+assert(figmaContent.includes('"map-view":EnhancedGoogleMapsResourceMap'), 'Router maps map-view to EnhancedGoogleMapsResourceMap');
 
-// Test 3: Check 8-stage Delivery Lifecycle
+// Test 3: Check Swiggy Icons & Map Styling
+assert(figmaContent.includes('SWIGGY_COURIER_SVG'), 'Swiggy courier vehicle SVG icon defined');
+assert(figmaContent.includes('SWIGGY_HOSPITAL_SVG'), 'Swiggy emergency hospital SVG icon defined');
+assert(figmaContent.includes('SWIGGY_BLOODBANK_SVG'), 'Swiggy blood bank dispatch hub SVG icon defined');
+assert(figmaContent.includes('SWIGGY_DONOR_SVG'), 'Swiggy donor SVG icon defined');
+assert(figmaContent.includes('SWIGGY_CLEAN_MAP_STYLE'), 'Swiggy clean Google Maps theme defined');
+
+// Test 4: Check 8-stage Delivery Lifecycle
 const stages = ['Created', 'Matching', 'Match Found', 'Accepted', 'Blood Prepared', 'In Transit', 'Arriving', 'Delivered'];
 stages.forEach(st => {
   assert(figmaContent.includes(st), `Lifecycle stage "${st}" is supported in tracking engine`);
 });
 
-// Test 4: Check Interactive Controls
+// Test 5: Check Interactive Controls
 assert(figmaContent.includes('Resume Movement') || figmaContent.includes('Start Delivery'), 'Start/Resume Movement control present');
-assert(figmaContent.includes('Pause Simulation') || figmaContent.includes('Pause Transit'), 'Pause Transit/Simulation control present');
+assert(figmaContent.includes('Pause Transit') || figmaContent.includes('Pause Simulation'), 'Pause Transit/Simulation control present');
 assert(figmaContent.includes('Mark as Delivered'), 'Mark as Delivered control present');
-assert(figmaContent.includes('Simulation') || figmaContent.includes('Demo Tracking'), 'Demo Tracking simulation mode present');
+assert(figmaContent.includes('Recenter Courier'), 'Recenter/Focus courier camera control present');
 
-// Test 5: Check Fallback Mode Support
-assert(figmaContent.includes('Realtime GPS Route Telemetry Active') || figmaContent.includes('Live Telemetry Fallback'), 'Graceful GPS Telemetry fallback display present');
+// Test 6: Check Fallback Mode Support
+assert(figmaContent.includes('Graceful GPS Telemetry fallback display') || figmaContent.includes('Realtime GPS Route Telemetry Active'), 'Graceful GPS Telemetry fallback display present');
 
-// Test 6: Check Hospital Dashboard integration
+// Test 7: Check Hospital Dashboard integration
 assert(figmaContent.includes('Track Blood 🚨'), 'Hospital dashboard includes Track Blood 🚨 button');
 
-// Test 7: Verify .env.local exists and is ignored by git
+// Test 8: Verify .env.local exists and is ignored by git
 const envPath = path.join(__dirname, '.env.local');
 assert(fs.existsSync(envPath), '.env.local exists in bloodconnect');
 const envContent = fs.readFileSync(envPath, 'utf8');
@@ -73,6 +82,5 @@ console.log(`\nTest Summary: ${passed} Passed, ${failed} Failed`);
 if (failed > 0) {
   process.exit(1);
 } else {
-  console.log('All Google Maps Live Tracking checks PASSED successfully!');
+  console.log('All Swiggy-Style Google Maps Live Tracking checks PASSED successfully!');
 }
-
