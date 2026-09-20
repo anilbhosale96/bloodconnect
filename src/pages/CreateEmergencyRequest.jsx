@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ShieldCheck } from 'lucide-react'
 import Header from '../components/Header.jsx'
 import EmergencyRequestForm from '../components/EmergencyRequestForm.jsx'
@@ -40,11 +40,16 @@ export default function CreateEmergencyRequest() {
     load()
   }, [])
 
-  const handleSuccess = (_data) => {
-    // Optionally redirect back to hospital dashboard after short delay
+  const handleSuccess = (data) => {
+    // Redirect directly to Matching Results HERO SCREEN
     setTimeout(() => {
-      navigate('/hospital')
-    }, 2500)
+      const id = data?.id
+      if (id) {
+        navigate(`/hospital/matching-results?requestId=${id}`)
+      } else {
+        navigate('/hospital/matching-results')
+      }
+    }, 1500)
   }
 
   return (

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Clock, Droplet, RefreshCw } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Clock, Droplet, RefreshCw, Sparkles, History } from 'lucide-react'
 
 const STATUS_STEPS = ['PENDING', 'MATCHING', 'RESPONDED', 'FULFILLED']
 
@@ -162,6 +163,30 @@ export default function ActiveEmergencyRequests({
                         </div>
                       )
                     })}
+                  </div>
+                </div>
+
+                {/* Card Action Footer */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-slate-100 mt-3">
+                  <span className="text-3xs text-slate-400 font-mono">
+                    ID: {req.id ? req.id.slice(0, 8) : 'REQ'}...
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Link
+                      to={`/hospital/requests/${req.id}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                      title="View full 6-stage lifecycle traceability"
+                    >
+                      <History className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Trace Timeline</span>
+                    </Link>
+                    <Link
+                      to={`/hospital/matching-results?requestId=${req.id}&bloodGroup=${encodeURIComponent(req.blood_group || 'O+')}&units=${req.count || 1}&urgency=${req.urgency || 'CRITICAL'}`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold transition-colors shadow-2xs"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                      <span>View Matches</span>
+                    </Link>
                   </div>
                 </div>
               </div>

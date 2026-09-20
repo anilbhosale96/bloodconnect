@@ -8,6 +8,7 @@ import EmergencyRequestModal from '../features/hospital/EmergencyRequestModal.js
 import NotificationsPanel from '../features/hospital/NotificationsPanel.jsx'
 import { getCurrentUser, getUserProfile } from '../services/auth.js'
 import { supabase } from '../lib/supabase.js'
+import { useRealtimeUpdates } from '../hooks/useRealtimeUpdates.js'
 
 export default function HospitalDashboard() {
   const [user, setUser] = useState(null)
@@ -102,6 +103,25 @@ export default function HospitalDashboard() {
   const loadDashboardData = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1)
   }, [])
+
+  // Pure Supabase Realtime Listener (no polling, no memory leaks)
+  useRealtimeUpdates({
+    onEmergencyRequest: (change) => {
+      if (change.eventType === 'INSERT' && change.new) {
+        setRequests((prev) => [change.new, ...prev.filter((r) => r.id !== change.new.id)])
+      } else if (change.eventType === 'UPDATE' && change.new) {
+        setRequests((prev) =>
+          prev.map((r) => (r.id === change.new.id ? { ...r, ...change.new } : r))
+        )
+      } else if (change.eventType === 'DELETE' && change.old) {
+        setRequests((prev) => prev.filter((r) => r.id !== change.old.id))
+      }
+    },
+    onResponse: () => {
+      // Refresh dashboard immediately when a blood bank submits a response
+      loadDashboardData()
+    },
+  })
 
   const handleRequestCreated = (newRequest) => {
     setRequests((prev) => [newRequest, ...prev])
