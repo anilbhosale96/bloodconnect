@@ -7,6 +7,38 @@
     <title>BloodConnect — Emergency Blood & Platelet Response Network</title>
     <meta name="description" content="Streamline emergency blood and platelet requests by connecting hospitals, blood banks, and verified donors for rapid response and resource tracking." />
     <link rel="stylesheet" href="/assets/figma.css" />
+  
+    <style id="bloodconnect-map-fullview-styles">
+      #google-maps-resource-canvas,
+      #swiggy-google-maps-canvas,
+      #global-fullscreen-map-viewport,
+      .google-maps-canvas-full {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 550px !important;
+        display: block !important;
+      }
+      .bloodconnect-map-wrapper {
+        display: flex !important;
+        width: 100% !important;
+        height: calc(100vh - 64px) !important;
+        min-height: 650px !important;
+        position: relative !important;
+        overflow: hidden !important;
+      }
+      @media (max-width: 1024px) {
+        .bloodconnect-map-wrapper {
+          flex-direction: column !important;
+          height: auto !important;
+        }
+        #google-maps-resource-canvas,
+        #swiggy-google-maps-canvas {
+          height: 65vh !important;
+          min-height: 450px !important;
+        }
+      }
+    </style>
+
   </head>
   <body>
     <div id="root"></div>

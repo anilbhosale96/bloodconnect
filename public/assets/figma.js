@@ -3763,12 +3763,14 @@ function EnhancedGoogleMapsLiveTracking() {
         className: 'flex-1 relative overflow-hidden flex flex-col md:flex-row',
         children: [
           (0, M.jsxDEV)('div', {
-            className: 'flex-1 relative h-[50vh] md:h-auto bg-slate-100',
+            className: 'flex-1 relative bg-slate-100',
+            style: { flex: 1, position: 'relative', width: '100%', height: 'calc(100vh - 120px)', minHeight: '550px' },
             children: [
               (0, M.jsxDEV)('div', {
                 ref: mapContainerRef,
                 id: 'swiggy-google-maps-canvas',
-                className: 'w-full h-full'
+                className: 'google-maps-canvas-full',
+                style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', minHeight: '550px' }
               }),
 
               // Graceful GPS Telemetry fallback display
@@ -3961,6 +3963,7 @@ function EnhancedGoogleMapsResourceMap() {
   const [selectedId, setSelectedId] = D.useState('H1');
   const [filters, setFilters] = D.useState({ radius: '10', verified: false, available: true });
   const [viewMode, setViewMode] = D.useState('google_maps');
+  const [showFullMap, setShowFullMap] = D.useState(false);
 
   const mapContainerRef = D.useRef(null);
   const mapInstanceRef = D.useRef(null);
@@ -4057,15 +4060,18 @@ function EnhancedGoogleMapsResourceMap() {
     title: 'Nearby Resources',
     subtitle: 'Swiggy-Powered Realtime Google Maps Resource Radar',
     children: (0, M.jsxDEV)('div', {
-      className: 'flex flex-col lg:flex-row h-full',
+      className: 'bloodconnect-map-wrapper flex flex-col lg:flex-row w-full',
+      style: { display: 'flex', width: '100%', height: 'calc(100vh - 64px)', minHeight: '650px', position: 'relative', overflow: 'hidden' },
       children: [
         (0, M.jsxDEV)('div', {
-          className: 'flex-1 relative bg-slate-100 min-h-[450px] lg:min-h-full overflow-hidden',
+          className: 'flex-1 relative bg-slate-100 overflow-hidden',
+          style: { flex: 1, position: 'relative', width: '100%', height: '100%', minHeight: '550px' },
           children: [
             (0, M.jsxDEV)('div', {
               ref: mapContainerRef,
               id: 'google-maps-resource-canvas',
-              className: 'w-full h-full min-h-[450px]'
+              className: 'google-maps-canvas-full',
+              style: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%', minHeight: '550px' }
             }),
 
             // Top Bar: Filters + View Mode Switcher
@@ -4106,6 +4112,12 @@ function EnhancedGoogleMapsResourceMap() {
                   children: [
                     (0, M.jsxDEV)('button', {
                       type: 'button',
+                      onClick: () => setShowFullMap(!showFullMap),
+                      className: 'px-3 py-1.5 rounded-lg text-xs font-bold bg-navy-800 hover:bg-navy-900 text-white transition-all shadow-sm flex items-center gap-1.5',
+                      children: [showFullMap ? '📋' : '⛶', showFullMap ? ' Show Details' : ' Full Map View']
+                    }),
+                    (0, M.jsxDEV)('button', {
+                      type: 'button',
                       onClick: () => navigate('request-tracking'),
                       className: 'px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white transition-all shadow-xs flex items-center gap-1',
                       children: ['🚨', ' Live Courier Tracking']
@@ -4128,8 +4140,9 @@ function EnhancedGoogleMapsResourceMap() {
         }),
 
         // Right Resource Details Sidebar
-        (0, M.jsxDEV)('div', {
-          className: 'w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-6 flex flex-col justify-between overflow-y-auto',
+        !showFullMap && (0, M.jsxDEV)('div', {
+          className: 'w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 p-6 flex flex-col justify-between overflow-y-auto flex-shrink-0',
+          style: { maxHeight: 'calc(100vh - 64px)' },
           children: [
             (0, M.jsxDEV)('div', {
               className: 'space-y-4',
