@@ -301,7 +301,7 @@ export default function Login() {
         </div>
 
         <p className="mt-6 text-center text-xs text-slate-500">
-          LIFE-LINK Emergency Blood Response System &bull; PRARAMBHA 2.0
+          LIFE-LINK Emergency Blood Response System
         </p>
       </div>
     </div>

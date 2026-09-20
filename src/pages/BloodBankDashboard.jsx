@@ -414,7 +414,7 @@ export default function BloodBankDashboard() {
       />
 
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
-        LIFE-LINK &bull; Blood Bank Inventory &amp; Emergency Coordination &bull; PRARAMBHA 2.0 PS-02
+        LIFE-LINK Emergency Blood Response System
       </footer>
     </div>
   )

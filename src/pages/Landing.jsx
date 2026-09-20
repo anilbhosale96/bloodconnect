@@ -45,7 +45,7 @@ export default function Landing() {
         <div className="text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-red-50 border border-red-200 text-red-700 text-xs font-semibold mb-6">
             <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
-            PRARAMBHA 2.0 PS-02: Emergency Blood Response System
+            LIFE-LINK Emergency Blood Response System
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-tight">
             When Emergencies Occur, <span className="text-blue-600">Seconds Matter.</span>
@@ -114,7 +114,7 @@ export default function Landing() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
-        LIFE-LINK &bull; Emergency Blood Response System &bull; PRARAMBHA 2.0 PS-02
+        LIFE-LINK Emergency Blood Response System
       </footer>
     </div>
   )

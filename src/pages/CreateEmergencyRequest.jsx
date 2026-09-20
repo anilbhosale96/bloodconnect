@@ -91,7 +91,7 @@ export default function CreateEmergencyRequest() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
-        LIFE-LINK &bull; Emergency Blood Response System &bull; PRARAMBHA 2.0 PS-02
+        LIFE-LINK Emergency Blood Response System
       </footer>
     </div>
   )
