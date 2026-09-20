@@ -4221,7 +4221,7 @@ function EnhancedGoogleMapsResourceMap() {
   });
 }
 
-$H={landing:Yt,login:EnhancedLoginPage,register:RegisterPage,hospital:ZV,"create-request":EnhancedCreateEmergencyRequest,"smart-matching":EnhancedSmartMatching,"map-view":EnhancedGoogleMapsResourceMap,"request-tracking":EnhancedGoogleMapsLiveTracking,"blood-availability":xH,bloodbank:wH,"emergency-response":DH,donor:kH,admin:NH,demo:IH,notifications:zH,history:BH,analytics:VH,verification:WH,profile:EnhancedProfile};function eU(){
+var $H={landing:Yt,login:EnhancedLoginPage,register:RegisterPage,hospital:ZV,"create-request":EnhancedCreateEmergencyRequest,"smart-matching":EnhancedSmartMatching,"map-view":EnhancedGoogleMapsResourceMap,"request-tracking":EnhancedGoogleMapsLiveTracking,"blood-availability":xH,bloodbank:wH,"emergency-response":DH,donor:kH,admin:NH,demo:IH,notifications:zH,history:BH,analytics:VH,verification:WH,profile:EnhancedProfile};function eU(){
   // Determine initial route from URL path or hash
   let initialRoute = 'landing';
   if (typeof window !== 'undefined') {
