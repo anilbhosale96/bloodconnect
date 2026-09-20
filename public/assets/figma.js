@@ -1979,7 +1979,1133 @@ function EnhancedProfile() {
 }
 // ==================== END BLOODCONNECT ENHANCED REGISTRATION & PROFILES ====================
 
-var $H={landing:Yt,login:EnhancedLoginPage,register:RegisterPage,hospital:ZV,"create-request":iH,"smart-matching":cH,"map-view":pH,"request-tracking":vH,"blood-availability":xH,bloodbank:wH,"emergency-response":DH,donor:kH,admin:NH,demo:IH,notifications:zH,history:BH,analytics:VH,verification:WH,profile:EnhancedProfile};function eU(){
+
+// ==================== BLOODCONNECT AUTOMATIC COMPATIBILITY & AVAILABILITY ENGINE ====================
+
+// Standard Clinical Blood Compatibility Matrix by Component
+const BC_COMPATIBILITY_RULES = {
+  RBC: {
+    'O-': ['O-'],
+    'O+': ['O+', 'O-'],
+    'A-': ['A-', 'O-'],
+    'A+': ['A+', 'O+', 'A-', 'O-'],
+    'B-': ['B-', 'O-'],
+    'B+': ['B+', 'O+', 'B-', 'O-'],
+    'AB-': ['AB-', 'A-', 'B-', 'O-'],
+    'AB+': ['AB+', 'A+', 'B+', 'AB-', 'O+', 'A-', 'B-', 'O-']
+  },
+  'Whole Blood': {
+    'O-': ['O-'],
+    'O+': ['O+', 'O-'],
+    'A-': ['A-', 'O-'],
+    'A+': ['A+', 'O+', 'A-', 'O-'],
+    'B-': ['B-', 'O-'],
+    'B+': ['B+', 'O+', 'B-', 'O-'],
+    'AB-': ['AB-', 'A-', 'B-', 'O-'],
+    'AB+': ['AB+', 'A+', 'B+', 'AB-', 'O+', 'A-', 'B-', 'O-']
+  },
+  Platelets: {
+    'O-': ['O-'],
+    'O+': ['O+', 'O-'],
+    'A-': ['A-', 'O-'],
+    'A+': ['A+', 'O+', 'A-', 'AB+'],
+    'B-': ['B-', 'O-'],
+    'B+': ['B+', 'O+', 'B-', 'AB+'],
+    'AB-': ['AB-', 'A-', 'B-', 'O-'],
+    'AB+': ['AB+', 'A+', 'B+', 'O+', 'AB-']
+  },
+  Plasma: {
+    'O-': ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'],
+    'O+': ['O+', 'A+', 'B+', 'AB+'],
+    'A-': ['A-', 'A+', 'AB-', 'AB+'],
+    'A+': ['A+', 'AB+'],
+    'B-': ['B-', 'B+', 'AB-', 'AB+'],
+    'B+': ['B+', 'AB+'],
+    'AB-': ['AB-', 'AB+'],
+    'AB+': ['AB+']
+  }
+};
+
+function getAutoCompatibleBloodGroups(patientBloodGroup, componentType) {
+  if (!patientBloodGroup) return [];
+  const normalizedComp = (componentType === 'PRBC' || componentType === 'RBC') ? 'RBC' :
+                         (componentType === 'FFP' || componentType === 'Plasma') ? 'Plasma' :
+                         (componentType === 'Platelets') ? 'Platelets' : 'Whole Blood';
+  
+  const rules = BC_COMPATIBILITY_RULES[normalizedComp] || BC_COMPATIBILITY_RULES.RBC;
+  return rules[patientBloodGroup] || [patientBloodGroup];
+}
+
+// Verified Regional Blood Banks in Bangalore Network
+const BC_VERIFIED_BLOOD_BANKS = [
+  {
+    id: 'bb-central-001',
+    name: 'Metro Central Regional Blood Bank',
+    city: 'Central District, Bangalore',
+    address: '14 Millers Road, Vasanth Nagar',
+    latitude: 12.9716,
+    longitude: 77.5946,
+    phone: '080-22214455',
+    verified: true,
+    operatingHours: '24/7 Transfusion Wing'
+  },
+  {
+    id: 'bb-north-002',
+    name: 'Indian Red Cross Society Transfusion Center',
+    city: 'North District, Bangalore',
+    address: '26/1 Railway Parallel Rd, Malleshwaram',
+    latitude: 13.0125,
+    longitude: 77.5512,
+    phone: '080-23348899',
+    verified: true,
+    operatingHours: '24/7 Emergency Service'
+  },
+  {
+    id: 'bb-south-003',
+    name: 'Rotary TTK Regional Blood Centre',
+    city: 'South District, Bangalore',
+    address: '107/1 New Hospital Rd, Jayanagar 4th Block',
+    latitude: 12.9249,
+    longitude: 77.5834,
+    phone: '080-26639900',
+    verified: true,
+    operatingHours: '24/7 Component Separation'
+  },
+  {
+    id: 'bb-west-004',
+    name: 'Victoria Institute Transfusion Services',
+    city: 'West District, Bangalore',
+    address: 'K.R. Road, City Market Medical Campus',
+    latitude: 12.9620,
+    longitude: 77.5750,
+    phone: '080-26701122',
+    verified: true,
+    operatingHours: '24/7 Government Trauma Hub'
+  },
+  {
+    id: 'bb-east-005',
+    name: 'Lifeline Regional Blood Centre',
+    city: 'East District, Bangalore',
+    address: '88 100 Feet Road, Indiranagar',
+    latitude: 12.9815,
+    longitude: 77.6408,
+    phone: '080-25217733',
+    verified: true,
+    operatingHours: '24/7 Cryo & Apheresis Wing'
+  }
+];
+
+const BC_LIVE_INVENTORY_KEY = 'bloodconnect_live_inventory_v2';
+
+function getLiveVerifiedInventory() {
+  try {
+    const stored = localStorage.getItem(BC_LIVE_INVENTORY_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+
+  // Initial Seeded Live Inventory for Verified Blood Banks
+  const initialStock = [
+    // Metro Central (bb-central-001)
+    { id: 'inv-101', blood_bank_id: 'bb-central-001', blood_group: 'O+', component_type: 'Whole Blood', available_units: 24, reserved_units: 3 },
+    { id: 'inv-102', blood_bank_id: 'bb-central-001', blood_group: 'O+', component_type: 'Platelets', available_units: 14, reserved_units: 2 },
+    { id: 'inv-103', blood_bank_id: 'bb-central-001', blood_group: 'O-', component_type: 'RBC', available_units: 4, reserved_units: 1 },
+    { id: 'inv-104', blood_bank_id: 'bb-central-001', blood_group: 'O-', component_type: 'Platelets', available_units: 1, reserved_units: 0 },
+    { id: 'inv-105', blood_bank_id: 'bb-central-001', blood_group: 'A+', component_type: 'RBC', available_units: 18, reserved_units: 2 },
+    { id: 'inv-106', blood_bank_id: 'bb-central-001', blood_group: 'A-', component_type: 'Whole Blood', available_units: 3, reserved_units: 0 },
+    { id: 'inv-107', blood_bank_id: 'bb-central-001', blood_group: 'B+', component_type: 'Whole Blood', available_units: 20, reserved_units: 4 },
+    { id: 'inv-108', blood_bank_id: 'bb-central-001', blood_group: 'B-', component_type: 'Plasma', available_units: 2, reserved_units: 0 },
+    { id: 'inv-109', blood_bank_id: 'bb-central-001', blood_group: 'AB+', component_type: 'Platelets', available_units: 12, reserved_units: 1 },
+    { id: 'inv-110', blood_bank_id: 'bb-central-001', blood_group: 'AB-', component_type: 'Whole Blood', available_units: 1, reserved_units: 0 },
+
+    // Indian Red Cross (bb-north-002)
+    { id: 'inv-201', blood_bank_id: 'bb-north-002', blood_group: 'O-', component_type: 'Platelets', available_units: 6, reserved_units: 1 },
+    { id: 'inv-202', blood_bank_id: 'bb-north-002', blood_group: 'O+', component_type: 'Platelets', available_units: 18, reserved_units: 3 },
+    { id: 'inv-203', blood_bank_id: 'bb-north-002', blood_group: 'A+', component_type: 'Platelets', available_units: 15, reserved_units: 0 },
+    { id: 'inv-204', blood_bank_id: 'bb-north-002', blood_group: 'B+', component_type: 'Whole Blood', available_units: 10, reserved_units: 1 },
+    { id: 'inv-205', blood_bank_id: 'bb-north-002', blood_group: 'B-', component_type: 'Whole Blood', available_units: 0, reserved_units: 0 }, // 0 units (unavailable)
+    { id: 'inv-206', blood_bank_id: 'bb-north-002', blood_group: 'AB-', component_type: 'RBC', available_units: 2, reserved_units: 0 },
+
+    // Rotary TTK (bb-south-003)
+    { id: 'inv-301', blood_bank_id: 'bb-south-003', blood_group: 'B+', component_type: 'Whole Blood', available_units: 16, reserved_units: 2 },
+    { id: 'inv-302', blood_bank_id: 'bb-south-003', blood_group: 'O+', component_type: 'RBC', available_units: 22, reserved_units: 5 },
+    { id: 'inv-303', blood_bank_id: 'bb-south-003', blood_group: 'O-', component_type: 'Platelets', available_units: 4, reserved_units: 1 },
+    { id: 'inv-304', blood_bank_id: 'bb-south-003', blood_group: 'A+', component_type: 'Plasma', available_units: 14, reserved_units: 0 },
+    { id: 'inv-305', blood_bank_id: 'bb-south-003', blood_group: 'AB+', component_type: 'Whole Blood', available_units: 8, reserved_units: 1 },
+
+    // Victoria Institute (bb-west-004)
+    { id: 'inv-401', blood_bank_id: 'bb-west-004', blood_group: 'O-', component_type: 'RBC', available_units: 8, reserved_units: 2 },
+    { id: 'inv-402', blood_bank_id: 'bb-west-004', blood_group: 'O+', component_type: 'RBC', available_units: 28, reserved_units: 4 },
+    { id: 'inv-403', blood_bank_id: 'bb-west-004', blood_group: 'A+', component_type: 'RBC', available_units: 12, reserved_units: 1 },
+    { id: 'inv-404', blood_bank_id: 'bb-west-004', blood_group: 'A+', component_type: 'Plasma', available_units: 1, reserved_units: 0 },
+    { id: 'inv-405', blood_bank_id: 'bb-west-004', blood_group: 'AB-', component_type: 'Platelets', available_units: 1, reserved_units: 0 },
+
+    // Lifeline Regional (bb-east-005)
+    { id: 'inv-501', blood_bank_id: 'bb-east-005', blood_group: 'O+', component_type: 'Whole Blood', available_units: 12, reserved_units: 1 },
+    { id: 'inv-502', blood_bank_id: 'bb-east-005', blood_group: 'B+', component_type: 'RBC', available_units: 15, reserved_units: 2 },
+    { id: 'inv-503', blood_bank_id: 'bb-east-005', blood_group: 'O-', component_type: 'Platelets', available_units: 3, reserved_units: 0 },
+    { id: 'inv-504', blood_bank_id: 'bb-east-005', blood_group: 'A-', component_type: 'RBC', available_units: 2, reserved_units: 0 },
+    { id: 'inv-505', blood_bank_id: 'bb-east-005', blood_group: 'AB+', component_type: 'Plasma', available_units: 6, reserved_units: 0 }
+  ];
+
+  localStorage.setItem(BC_LIVE_INVENTORY_KEY, JSON.stringify(initialStock));
+  return initialStock;
+}
+
+function saveLiveVerifiedInventory(inventory) {
+  localStorage.setItem(BC_LIVE_INVENTORY_KEY, JSON.stringify(inventory));
+}
+
+// Distance calculation using Haversine formula
+function calculateBcDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return parseFloat((R * c).toFixed(1));
+}
+
+// Rank matching sources using compatibility, component availability, distance, urgency, and quantity
+function rankMatchingSources({ request, inventory, bloodBanks }) {
+  const patientBloodGroup = request.bloodGroup || 'A+';
+  const requestedComponent = request.component || 'RBC';
+  const requiredUnits = parseInt(request.units, 10) || 2;
+  const urgency = (request.priority || 'critical').toLowerCase();
+  
+  // Hospital coordinates (default to Central Bangalore if not set)
+  const hospLat = request.latitude || 12.9784;
+  const hospLon = request.longitude || 77.6408;
+
+  // Auto-calculated compatible blood groups
+  const compatibleGroups = getAutoCompatibleBloodGroups(patientBloodGroup, requestedComponent);
+
+  // Normalize component aliases (RBC <-> PRBC, Plasma <-> FFP)
+  const compAliases = [requestedComponent];
+  if (requestedComponent === 'RBC') compAliases.push('PRBC');
+  if (requestedComponent === 'PRBC') compAliases.push('RBC');
+  if (requestedComponent === 'Plasma') compAliases.push('FFP');
+  if (requestedComponent === 'FFP') compAliases.push('Plasma');
+
+  // Filter inventory
+  const matches = [];
+
+  bloodBanks.forEach(bank => {
+    // Find all matching inventory entries for this blood bank that match component and compatible groups
+    const bankItems = inventory.filter(inv => 
+      inv.blood_bank_id === bank.id &&
+      compAliases.includes(inv.component_type) &&
+      compatibleGroups.includes(inv.blood_group) &&
+      inv.available_units > 0 // Do not show unavailable units as available
+    );
+
+    bankItems.forEach(item => {
+      const distance = calculateBcDistance(hospLat, hospLon, bank.latitude, bank.longitude);
+      const isExactMatch = (item.blood_group === patientBloodGroup);
+      const isFullAvailable = (item.available_units >= requiredUnits);
+
+      // Scoring
+      // Compatibility score: 100 for exact, 80 for compatible alternative
+      const compatibilityScore = isExactMatch ? 100 : 80;
+      
+      // Availability score
+      const availScore = isFullAvailable ? 100 : Math.round((item.available_units / requiredUnits) * 80);
+
+      // Distance score (within 20km = up to 100)
+      const distanceScore = Math.max(10, Math.round(100 - (distance * 3)));
+
+      // Urgency factor
+      let urgencyWeight = { comp: 0.35, avail: 0.35, dist: 0.30 };
+      if (urgency === 'critical') {
+        urgencyWeight = { comp: 0.25, avail: 0.40, dist: 0.35 };
+      }
+
+      const totalScore = Math.round(
+        (compatibilityScore * urgencyWeight.comp) +
+        (availScore * urgencyWeight.avail) +
+        (distanceScore * urgencyWeight.dist)
+      );
+
+      matches.push({
+        id: `match-${bank.id}-${item.id}`,
+        bankId: bank.id,
+        inventoryId: item.id,
+        name: bank.name,
+        city: bank.city,
+        phone: bank.phone,
+        verified: bank.verified,
+        requiredBloodGroup: patientBloodGroup,
+        matchedBloodGroup: item.blood_group,
+        component: requestedComponent,
+        requiredUnits: requiredUnits,
+        availableUnits: item.available_units,
+        distance: distance,
+        isExactMatch: isExactMatch,
+        matchStatus: isExactMatch ? 'Exact Match' : 'Compatible Alternative',
+        availabilityStatus: isFullAvailable ? 'Available' : 'Partially Available',
+        totalScore: totalScore,
+        operatingHours: bank.operatingHours
+      });
+    });
+  });
+
+  // Sort descending by total score, then distance ascending
+  matches.sort((a, b) => b.totalScore - a.totalScore || a.distance - b.distance);
+
+  return {
+    patientBloodGroup,
+    compatibleGroups,
+    requiredUnits,
+    matches
+  };
+}
+
+// -------------------------------------------------------------
+// Component 1: Enhanced Create Emergency Request Page
+// -------------------------------------------------------------
+function EnhancedCreateEmergencyRequest() {
+  const { navigate, showToast } = YH();
+  const [step, setStep] = D.useState(0);
+
+  // Request form state
+  const [bloodGroup, setBloodGroup] = D.useState('A+');
+  const [component, setComponent] = D.useState('RBC');
+  const [units, setUnits] = D.useState(2);
+  const [priority, setPriority] = D.useState('critical');
+  const [requiredDate, setRequiredDate] = D.useState(new Date().toISOString().split('T')[0]);
+  const [requiredTime, setRequiredTime] = D.useState('11:30');
+  const [requiredBy, setRequiredBy] = D.useState('Within 1 hour');
+  const [hospitalName, setHospitalName] = D.useState('Manipal Emergency & Trauma Care');
+  const [address, setAddress] = D.useState('98 HAL Old Airport Road');
+  const [city, setCity] = D.useState('Bangalore');
+  const [pincode, setPincode] = D.useState('560017');
+  const [patientRef, setPatientRef] = D.useState('PT-EMERG-' + Math.floor(1000 + Math.random() * 9000));
+  const [additionalNotes, setAdditionalNotes] = D.useState('Urgent admission from Old Airport Road. Cross-match ready.');
+
+  const [submitting, setSubmitting] = D.useState(false);
+  const [submittedId, setSubmittedId] = D.useState('BR-' + Date.now().toString().slice(-6));
+
+  const bloodGroupsList = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  const componentsList = ['RBC', 'Whole Blood', 'Platelets', 'Plasma'];
+  const citiesList = ['Bangalore', 'Mumbai', 'Pune', 'Kolhapur', 'Delhi', 'Hyderabad'];
+
+  // Requirement 2: Automatically determine compatible blood groups
+  const compatibleGroups = D.useMemo(() => {
+    return getAutoCompatibleBloodGroups(bloodGroup, component);
+  }, [bloodGroup, component]);
+
+  const priorityOptions = [
+    { id: 'critical', label: 'CRITICAL PRIORITY', desc: 'Immediate transfusion required (< 1 hour). Broadcasts urgent alert to all nearby facilities.', color: 'text-red-600', border: 'border-red-400 bg-red-50/60' },
+    { id: 'high', label: 'HIGH PRIORITY', desc: 'Required within 2 to 4 hours. Priority matching with verified blood banks.', color: 'text-amber-600', border: 'border-amber-300 bg-amber-50/60' },
+    { id: 'normal', label: 'STANDARD PRIORITY', desc: 'Scheduled requirement within 6 to 12 hours. Standard routing.', color: 'text-emerald-600', border: 'border-emerald-300 bg-emerald-50/60' }
+  ];
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    const reqPayload = {
+      id: submittedId,
+      bloodGroup: bloodGroup,
+      component: component,
+      units: parseInt(units, 10) || 2,
+      priority: priority,
+      hospital: hospitalName,
+      location: `${address}, ${city}`,
+      city: city,
+      pincode: pincode,
+      latitude: 12.9784,
+      longitude: 77.6408,
+      patientRef: patientRef,
+      requiredBy: requiredBy,
+      additionalNotes: additionalNotes,
+      compatibleGroups: compatibleGroups,
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: 'matching'
+    };
+
+    // Save to persistent requests
+    try {
+      const stored = JSON.parse(localStorage.getItem('bloodconnect_emergency_requests') || '[]');
+      stored.unshift(reqPayload);
+      localStorage.setItem('bloodconnect_emergency_requests', JSON.stringify(stored));
+    } catch (e) {}
+
+    // Also attempt saving to Supabase
+    try {
+      fetch('https://zckomivlazldlzwtckpi.supabase.co/rest/v1/emergency_requests', {
+        method: 'POST',
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpja29taXZsYXpsZGx6d3Rja3BpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NzM2MjMsImV4cCI6MjEwNTQ0OTYyM30.NjJ7jMWJSAiTvY1hei0jG0iYg4lg8rmtjvUZZP1Q6l8',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          blood_group: bloodGroup,
+          component_type: component,
+          quantity: parseInt(units, 10) || 2,
+          urgency: priority.toUpperCase(),
+          status: 'CREATED',
+          latitude: 12.9784,
+          longitude: 77.6408
+        })
+      }).catch(() => {});
+    } catch (e) {}
+
+    setTimeout(() => {
+      setSubmitting(false);
+      showToast(`Emergency Request ${submittedId} broadcasted! Matching nearby resources...`, 'success');
+      // Navigate to Smart Matching
+      navigate('smart-matching', reqPayload);
+    }, 800);
+  };
+
+  const stepsHeader = ['Requirement', 'Location', 'Urgency', 'Details', 'Confirm'];
+
+  return (0, M.jsxDEV)(PV, {
+    title: 'Create Emergency Request',
+    subtitle: 'Submit an emergency blood or platelet requirement with automatic compatibility determination',
+    children: (0, M.jsxDEV)('div', {
+      className: 'max-w-2xl mx-auto px-4 sm:px-6 py-6',
+      children: [
+        // Steps Bar
+        (0, M.jsxDEV)('div', {
+          className: 'flex items-center justify-between mb-8 overflow-x-auto pb-2',
+          children: stepsHeader.map((sName, idx) => (0, M.jsxDEV)('div', {
+            className: 'flex items-center gap-2 flex-shrink-0',
+            children: [
+              (0, M.jsxDEV)('div', {
+                className: `w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step === idx ? 'bg-navy-800 text-white shadow-md' : step > idx ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-400'}`,
+                children: step > idx ? '✓' : (idx + 1)
+              }),
+              (0, M.jsxDEV)('span', {
+                className: `text-xs font-semibold ${step === idx ? 'text-navy-800 font-bold' : 'text-slate-400'}`,
+                children: sName
+              }),
+              idx < stepsHeader.length - 1 && (0, M.jsxDEV)('div', { className: 'w-6 sm:w-10 h-0.5 bg-slate-200 mx-1' })
+            ]
+          }, sName))
+        }),
+
+        // Form Card
+        (0, M.jsxDEV)('div', {
+          className: `bg-white rounded-2xl border shadow-sm overflow-hidden ${priority === 'critical' && step >= 2 ? 'border-red-400' : 'border-slate-200'}`,
+          children: [
+            priority === 'critical' && step >= 2 && (0, M.jsxDEV)('div', {
+              className: 'bg-red-600 text-white px-5 py-2.5 flex items-center gap-2',
+              children: [
+                (0, M.jsxDEV)('span', { className: 'text-sm', children: '⚡' }),
+                (0, M.jsxDEV)('span', { className: 'text-sm font-bold', children: 'CRITICAL PRIORITY — Immediate automated resource matching enabled' })
+              ]
+            }),
+
+            (0, M.jsxDEV)('div', {
+              className: 'p-6 sm:p-8',
+              children: [
+                // STEP 0: Blood Requirement & Auto Compatibility
+                step === 0 && (0, M.jsxDEV)('div', {
+                  className: 'animate-fade-in space-y-6',
+                  children: [
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('h2', { className: 'font-display font-bold text-navy-800 text-xl mb-1', children: 'Patient Blood Requirement' }),
+                        (0, M.jsxDEV)('p', { className: 'text-slate-500 text-sm', children: 'Select patient blood group and component. Compatible groups will be determined automatically.' })
+                      ]
+                    }),
+
+                    // Patient Blood Group
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-2', children: 'Patient Blood Group *' }),
+                        (0, M.jsxDEV)('div', {
+                          className: 'grid grid-cols-4 gap-2.5',
+                          children: bloodGroupsList.map(grp => (0, M.jsxDEV)('button', {
+                            type: 'button',
+                            onClick: () => setBloodGroup(grp),
+                            className: `py-3 rounded-xl font-display font-bold text-base transition-all ${bloodGroup === grp ? 'bg-navy-800 text-white shadow-md' : 'bg-slate-50 text-slate-700 border border-slate-200 hover:border-navy-300'}`,
+                            children: grp
+                          }, grp))
+                        })
+                      ]
+                    }),
+
+                    // Blood Component
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-2', children: 'Blood Component *' }),
+                        (0, M.jsxDEV)('div', {
+                          className: 'grid grid-cols-2 gap-2.5',
+                          children: componentsList.map(comp => (0, M.jsxDEV)('button', {
+                            type: 'button',
+                            onClick: () => setComponent(comp),
+                            className: `p-3.5 rounded-xl border text-sm font-semibold flex items-center justify-between transition-all ${component === comp ? 'border-teal-500 bg-teal-50 text-teal-800 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`,
+                            children: [
+                              comp,
+                              component === comp && (0, M.jsxDEV)('span', { className: 'text-teal-600 font-bold', children: '✓' })
+                            ]
+                          }, comp))
+                        })
+                      ]
+                    }),
+
+                    // Requirement 2: AUTOMATIC COMPATIBLE BLOOD GROUPS DISPLAY
+                    (0, M.jsxDEV)('div', {
+                      className: 'p-4 rounded-xl bg-teal-50 border border-teal-200 animate-fade-in',
+                      children: [
+                        (0, M.jsxDEV)('div', {
+                          className: 'flex items-center justify-between mb-2',
+                          children: [
+                            (0, M.jsxDEV)('div', {
+                              className: 'flex items-center gap-2',
+                              children: [
+                                (0, M.jsxDEV)('span', { className: 'w-2 h-2 rounded-full bg-teal-600 animate-pulse' }),
+                                (0, M.jsxDEV)('span', { className: 'text-xs font-bold text-teal-900 uppercase tracking-wider', children: 'Automatically Determined Compatible Groups' })
+                              ]
+                            }),
+                            (0, M.jsxDEV)('span', { className: 'text-[10px] bg-white border border-teal-200 text-teal-700 px-2 py-0.5 rounded-full font-semibold', children: 'Auto-Matched' })
+                          ]
+                        }),
+                        (0, M.jsxDEV)('p', {
+                          className: 'text-xs text-slate-600 mb-2.5',
+                          children: [
+                            'For patient ',
+                            (0, M.jsxDEV)('span', { className: 'font-bold text-navy-800', children: bloodGroup }),
+                            ' (',
+                            component,
+                            '), the matching engine will evaluate the following donor groups:'
+                          ]
+                        }),
+                        (0, M.jsxDEV)('div', {
+                          className: 'flex items-center gap-2 flex-wrap',
+                          children: compatibleGroups.map(cg => (0, M.jsxDEV)('span', {
+                            className: `px-3 py-1 rounded-lg text-xs font-bold ${cg === bloodGroup ? 'bg-navy-800 text-white shadow-sm' : 'bg-teal-600 text-white'}`,
+                            children: [
+                              cg,
+                              cg === bloodGroup ? ' (Exact Match)' : ' (Compatible Alternative)'
+                            ]
+                          }, cg))
+                        }),
+                        (0, M.jsxDEV)('p', {
+                          className: 'text-[11px] text-teal-800/80 mt-2 italic',
+                          children: 'ℹ️ Configured automatically based on transfusion safety rules. Manual entry is not required.'
+                        })
+                      ]
+                    }),
+
+                    // Units Required
+                    (0, M.jsxDEV)('div', {
+                      className: 'grid grid-cols-2 gap-4',
+                      children: [
+                        (0, M.jsxDEV)('div', {
+                          children: [
+                            (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1.5', children: 'Units Required *' }),
+                            (0, M.jsxDEV)('input', {
+                              type: 'number',
+                              min: 1,
+                              max: 20,
+                              value: units,
+                              onChange: (e) => setUnits(parseInt(e.target.value, 10) || 1),
+                              className: 'w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-navy-600/20'
+                            })
+                          ]
+                        }),
+                        (0, M.jsxDEV)('div', {
+                          children: [
+                            (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1.5', children: 'Required By *' }),
+                            (0, M.jsxDEV)('input', {
+                              type: 'text',
+                              value: requiredBy,
+                              onChange: (e) => setRequiredBy(e.target.value),
+                              placeholder: 'e.g. Within 1 hour, Before 2 PM',
+                              className: 'w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-navy-600/20'
+                            })
+                          ]
+                        })
+                      ]
+                    })
+                  ]
+                }),
+
+                // STEP 1: Hospital Location
+                step === 1 && (0, M.jsxDEV)('div', {
+                  className: 'animate-fade-in space-y-5',
+                  children: [
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('h2', { className: 'font-display font-bold text-navy-800 text-xl mb-1', children: 'Hospital Location' }),
+                        (0, M.jsxDEV)('p', { className: 'text-slate-500 text-sm', children: 'Location coordinates are used to calculate proximity to verified blood banks.' })
+                      ]
+                    }),
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1.5', children: 'Hospital Name *' }),
+                        (0, M.jsxDEV)('input', {
+                          type: 'text',
+                          value: hospitalName,
+                          onChange: (e) => setHospitalName(e.target.value),
+                          className: 'w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-slate-50 focus:bg-white'
+                        })
+                      ]
+                    }),
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1.5', children: 'Street Address *' }),
+                        (0, M.jsxDEV)('input', {
+                          type: 'text',
+                          value: address,
+                          onChange: (e) => setAddress(e.target.value),
+                          className: 'w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-slate-50 focus:bg-white'
+                        })
+                      ]
+                    }),
+                    (0, M.jsxDEV)('div', {
+                      className: 'grid grid-cols-2 gap-4',
+                      children: [
+                        (0, M.jsxDEV)('div', {
+                          children: [
+                            (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1.5', children: 'City *' }),
+                            (0, M.jsxDEV)('select', {
+                              value: city,
+                              onChange: (e) => setCity(e.target.value),
+                              className: 'w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-slate-50 focus:bg-white',
+                              children: citiesList.map(c => (0, M.jsxDEV)('option', { value: c, children: c }, c))
+                            })
+                          ]
+                        }),
+                        (0, M.jsxDEV)('div', {
+                          children: [
+                            (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1.5', children: 'Pincode *' }),
+                            (0, M.jsxDEV)('input', {
+                              type: 'text',
+                              value: pincode,
+                              onChange: (e) => setPincode(e.target.value),
+                              className: 'w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-slate-50 focus:bg-white'
+                            })
+                          ]
+                        })
+                      ]
+                    })
+                  ]
+                }),
+
+                // STEP 2: Urgency
+                step === 2 && (0, M.jsxDEV)('div', {
+                  className: 'animate-fade-in space-y-5',
+                  children: [
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('h2', { className: 'font-display font-bold text-navy-800 text-xl mb-1', children: 'Urgency Level' }),
+                        (0, M.jsxDEV)('p', { className: 'text-slate-500 text-sm', children: 'Prioritizes routing speed and alert dispatch to regional transfusion units.' })
+                      ]
+                    }),
+                    (0, M.jsxDEV)('div', {
+                      className: 'space-y-3',
+                      children: priorityOptions.map(opt => (0, M.jsxDEV)('button', {
+                        type: 'button',
+                        onClick: () => setPriority(opt.id),
+                        className: `w-full p-4 rounded-xl border-2 text-left transition-all ${priority === opt.id ? opt.border + ' shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`,
+                        children: [
+                          (0, M.jsxDEV)('div', { className: `font-display font-bold text-base ${opt.color}`, children: opt.label }),
+                          (0, M.jsxDEV)('p', { className: 'text-xs text-slate-600 mt-1', children: opt.desc })
+                        ]
+                      }, opt.id))
+                    })
+                  ]
+                }),
+
+                // STEP 3: Patient Ref & Notes
+                step === 3 && (0, M.jsxDEV)('div', {
+                  className: 'animate-fade-in space-y-5',
+                  children: [
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('h2', { className: 'font-display font-bold text-navy-800 text-xl mb-1', children: 'Clinical Reference & Notes' }),
+                        (0, M.jsxDEV)('p', { className: 'text-slate-500 text-sm', children: 'Provide internal patient identifiers and coordination notes.' })
+                      ]
+                    }),
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1.5', children: 'Patient Reference ID *' }),
+                        (0, M.jsxDEV)('input', {
+                          type: 'text',
+                          value: patientRef,
+                          onChange: (e) => setPatientRef(e.target.value),
+                          placeholder: 'e.g. PT-8821',
+                          className: 'w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-slate-50 focus:bg-white'
+                        })
+                      ]
+                    }),
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('label', { className: 'text-xs font-semibold text-slate-600 uppercase tracking-wider block mb-1.5', children: 'Additional Notes' }),
+                        (0, M.jsxDEV)('textarea', {
+                          rows: 3,
+                          value: additionalNotes,
+                          onChange: (e) => setAdditionalNotes(e.target.value),
+                          placeholder: 'Special clinical handling, cross-match status, or delivery instructions...',
+                          className: 'w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-slate-50 focus:bg-white resize-none'
+                        })
+                      ]
+                    })
+                  ]
+                }),
+
+                // STEP 4: Confirm Request
+                step === 4 && (0, M.jsxDEV)('div', {
+                  className: 'animate-fade-in space-y-5',
+                  children: [
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('h2', { className: 'font-display font-bold text-navy-800 text-xl mb-1', children: 'Review & Broadcast Request' }),
+                        (0, M.jsxDEV)('p', { className: 'text-slate-500 text-sm', children: 'Verify all details before initiating automated compatibility dispatch.' })
+                      ]
+                    }),
+                    (0, M.jsxDEV)('div', {
+                      className: `p-5 rounded-2xl border-2 ${priority === 'critical' ? 'border-red-400 bg-red-50/50' : 'border-teal-300 bg-teal-50/50'}`,
+                      children: [
+                        (0, M.jsxDEV)('div', {
+                          className: 'flex items-center justify-between border-b pb-3 mb-4 border-slate-200',
+                          children: [
+                            (0, M.jsxDEV)('span', { className: 'font-mono text-sm font-bold text-navy-800', children: submittedId }),
+                            (0, M.jsxDEV)('span', {
+                              className: `text-xs font-bold px-3 py-1 rounded-md text-white ${priority === 'critical' ? 'bg-red-600' : 'bg-teal-600'}`,
+                              children: priority.toUpperCase()
+                            })
+                          ]
+                        }),
+                        (0, M.jsxDEV)('div', {
+                          className: 'grid grid-cols-2 gap-y-3 gap-x-4 text-xs',
+                          children: [
+                            (0, M.jsxDEV)('div', { children: [(0, M.jsxDEV)('span', { className: 'text-slate-500 block', children: 'Patient Blood Group' }), (0, M.jsxDEV)('span', { className: 'font-bold text-navy-800 text-sm', children: bloodGroup })] }),
+                            (0, M.jsxDEV)('div', { children: [(0, M.jsxDEV)('span', { className: 'text-slate-500 block', children: 'Component' }), (0, M.jsxDEV)('span', { className: 'font-bold text-navy-800 text-sm', children: component })] }),
+                            (0, M.jsxDEV)('div', { children: [(0, M.jsxDEV)('span', { className: 'text-slate-500 block', children: 'Units Required' }), (0, M.jsxDEV)('span', { className: 'font-bold text-navy-800 text-sm', children: `${units} Units` })] }),
+                            (0, M.jsxDEV)('div', { children: [(0, M.jsxDEV)('span', { className: 'text-slate-500 block', children: 'Required By' }), (0, M.jsxDEV)('span', { className: 'font-semibold text-slate-700', children: requiredBy })] }),
+                            (0, M.jsxDEV)('div', { className: 'col-span-2', children: [(0, M.jsxDEV)('span', { className: 'text-slate-500 block', children: 'Compatible Blood Groups' }), (0, M.jsxDEV)('span', { className: 'font-bold text-teal-700', children: compatibleGroups.join(', ') })] }),
+                            (0, M.jsxDEV)('div', { className: 'col-span-2', children: [(0, M.jsxDEV)('span', { className: 'text-slate-500 block', children: 'Hospital & Location' }), (0, M.jsxDEV)('span', { className: 'font-medium text-slate-700', children: `${hospitalName} • ${address}, ${city}` })] }),
+                            (0, M.jsxDEV)('div', { className: 'col-span-2', children: [(0, M.jsxDEV)('span', { className: 'text-slate-500 block', children: 'Patient Reference ID' }), (0, M.jsxDEV)('span', { className: 'font-medium text-slate-700', children: patientRef })] })
+                          ]
+                        })
+                      ]
+                    })
+                  ]
+                }),
+
+                // Navigation Buttons
+                (0, M.jsxDEV)('div', {
+                  className: 'mt-8 pt-5 border-t border-slate-100 flex items-center justify-between',
+                  children: [
+                    step > 0 ? (0, M.jsxDEV)('button', {
+                      type: 'button',
+                      onClick: () => setStep(step - 1),
+                      className: 'px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors',
+                      children: '← Back'
+                    }) : (0, M.jsxDEV)('button', {
+                      type: 'button',
+                      onClick: () => navigate('hospital'),
+                      className: 'px-5 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors',
+                      children: 'Cancel'
+                    }),
+
+                    step < 4 ? (0, M.jsxDEV)('button', {
+                      type: 'button',
+                      onClick: () => setStep(step + 1),
+                      className: 'px-6 py-2.5 bg-navy-800 hover:bg-navy-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm',
+                      children: 'Continue →'
+                    }) : (0, M.jsxDEV)('button', {
+                      type: 'button',
+                      onClick: handleSubmit,
+                      disabled: submitting,
+                      className: 'px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-colors shadow-md flex items-center gap-2',
+                      children: submitting ? 'Broadcasting Emergency...' : '🚀 Submit Request & Find Matches'
+                    })
+                  ]
+                })
+              ]
+            })
+          ]
+        })
+      ]
+    })
+  });
+}
+
+// -------------------------------------------------------------
+// Component 2: Enhanced Smart Matching Component
+// -------------------------------------------------------------
+function EnhancedSmartMatching() {
+  const { navigate, currentRequest, showToast } = YH();
+  const [loading, setLoading] = D.useState(true);
+  const [notifiedSet, setNotifiedSet] = D.useState(new Set());
+  const [reservedMatchId, setReservedMatchId] = D.useState(null);
+
+  // Filters
+  const [maxDistance, setMaxDistance] = D.useState(25);
+  const [filterAvailability, setFilterAvailability] = D.useState('all'); // all or full
+  const [filterCompatibility, setFilterCompatibility] = D.useState('all'); // all, exact, alternative
+
+  // Current request parameters with fallbacks
+  const reqObj = D.useMemo(() => {
+    return currentRequest || {
+      id: 'BR-EMERG-SAMPLE',
+      bloodGroup: 'A+',
+      component: 'RBC',
+      units: 2,
+      priority: 'critical',
+      hospital: 'Manipal Emergency & Trauma Care',
+      city: 'Bangalore',
+      location: '98 HAL Old Airport Road, Bangalore',
+      patientRef: 'PT-8821'
+    };
+  }, [currentRequest]);
+
+  // Read inventory and compute ranked matches
+  const [matchData, setMatchData] = D.useState({
+    patientBloodGroup: 'A+',
+    compatibleGroups: ['A+', 'O+'],
+    requiredUnits: 2,
+    matches: []
+  });
+
+  const loadMatches = D.useCallback(() => {
+    setLoading(true);
+    // Query local verified inventory and attempt Supabase inventory sync
+    const liveInv = getLiveVerifiedInventory();
+
+    // Try fetching Supabase live inventory
+    fetch('https://zckomivlazldlzwtckpi.supabase.co/rest/v1/inventory?select=*', {
+      headers: {
+        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpja29taXZsYXpsZGx6d3Rja3BpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4NzM2MjMsImV4cCI6MjEwNTQ0OTYyM30.NjJ7jMWJSAiTvY1hei0jG0iYg4lg8rmtjvUZZP1Q6l8'
+      }
+    }).then(res => res.json()).then(remoteData => {
+      let combinedInv = liveInv;
+      if (Array.isArray(remoteData) && remoteData.length > 0) {
+        // Merge remote items
+        combinedInv = [...remoteData, ...liveInv];
+      }
+      const ranked = rankMatchingSources({
+        request: reqObj,
+        inventory: combinedInv,
+        bloodBanks: BC_VERIFIED_BLOOD_BANKS
+      });
+      setMatchData(ranked);
+      setLoading(false);
+    }).catch(() => {
+      const ranked = rankMatchingSources({
+        request: reqObj,
+        inventory: liveInv,
+        bloodBanks: BC_VERIFIED_BLOOD_BANKS
+      });
+      setMatchData(ranked);
+      setLoading(false);
+    });
+  }, [reqObj]);
+
+  D.useEffect(() => {
+    loadMatches();
+  }, [loadMatches]);
+
+  // Handle unit reservation
+  const handleReserve = (match) => {
+    setReservedMatchId(match.id);
+    
+    // Deduct units in live inventory
+    const currentInv = getLiveVerifiedInventory();
+    const targetIdx = currentInv.findIndex(item => item.id === match.inventoryId);
+    if (targetIdx >= 0) {
+      const needed = match.requiredUnits;
+      const deduction = Math.min(needed, currentInv[targetIdx].available_units);
+      currentInv[targetIdx].available_units -= deduction;
+      currentInv[targetIdx].reserved_units = (currentInv[targetIdx].reserved_units || 0) + deduction;
+      saveLiveVerifiedInventory(currentInv);
+    }
+
+    showToast(`${match.requiredUnits} units of ${match.matchedBloodGroup} reserved at ${match.name}!`, 'success');
+
+    setTimeout(() => {
+      navigate('request-tracking', {
+        ...reqObj,
+        allocatedBank: match.name,
+        allocatedGroup: match.matchedBloodGroup,
+        allocatedUnits: match.requiredUnits,
+        status: 'reserved'
+      });
+    }, 1500);
+  };
+
+  const handleNotify = (match) => {
+    setNotifiedSet(prev => new Set([...prev, match.id]));
+    showToast(`Emergency dispatch alert transmitted to ${match.name}!`, 'success');
+  };
+
+  const handleNotifyAll = () => {
+    matchData.matches.forEach(m => setNotifiedSet(prev => new Set([...prev, m.id])));
+    showToast(`Urgent dispatch alert broadcasted to all ${matchData.matches.length} compatible facilities!`, 'success');
+  };
+
+  // Filter matches
+  const filteredMatches = matchData.matches.filter(m => {
+    if (m.distance > maxDistance) return false;
+    if (filterAvailability === 'full' && m.availabilityStatus !== 'Available') return false;
+    if (filterCompatibility === 'exact' && !m.isExactMatch) return false;
+    if (filterCompatibility === 'alternative' && m.isExactMatch) return false;
+    return true;
+  });
+
+  return (0, M.jsxDEV)(PV, {
+    title: 'Smart Matching & Availability',
+    subtitle: 'Automated compatibility scoring and live inventory matching from verified blood banks',
+    children: (0, M.jsxDEV)('div', {
+      className: 'p-4 sm:p-6 space-y-6 max-w-6xl mx-auto',
+      children: [
+        // Top Header Banner with Request Parameters & Auto Compatible Groups
+        (0, M.jsxDEV)('div', {
+          className: 'bg-navy-800 rounded-2xl p-6 text-white shadow-md',
+          children: [
+            (0, M.jsxDEV)('div', {
+              className: 'flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-white/10',
+              children: [
+                (0, M.jsxDEV)('div', {
+                  className: 'flex items-center gap-3',
+                  children: [
+                    (0, M.jsxDEV)('div', {
+                      className: 'w-14 h-14 rounded-2xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center font-display font-bold text-2xl text-teal-300',
+                      children: reqObj.bloodGroup
+                    }),
+                    (0, M.jsxDEV)('div', {
+                      children: [
+                        (0, M.jsxDEV)('div', { className: 'font-display font-bold text-xl', children: [reqObj.component, ' • ', reqObj.units, ' Units Required'] }),
+                        (0, M.jsxDEV)('div', { className: 'text-white/60 text-xs mt-0.5', children: [reqObj.hospital, ' • Ref: ', reqObj.patientRef || 'N/A'] })
+                      ]
+                    })
+                  ]
+                }),
+                (0, M.jsxDEV)('div', {
+                  className: 'flex items-center gap-2',
+                  children: [
+                    (0, M.jsxDEV)('span', {
+                      className: `px-3 py-1 rounded-lg text-xs font-bold uppercase ${reqObj.priority === 'critical' ? 'bg-red-600 text-white animate-pulse' : 'bg-teal-600 text-white'}`,
+                      children: reqObj.priority || 'CRITICAL'
+                    }),
+                    (0, M.jsxDEV)('button', {
+                      onClick: () => navigate('map-view'),
+                      className: 'px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold transition-colors flex items-center gap-1.5',
+                      children: '🗺️ Map View'
+                    })
+                  ]
+                })
+              ]
+            }),
+
+            // Display of Compatible Blood Groups
+            (0, M.jsxDEV)('div', {
+              className: 'mt-4 flex flex-wrap items-center gap-2',
+              children: [
+                (0, M.jsxDEV)('span', { className: 'text-xs text-white/70 font-semibold', children: 'Auto-Determined Compatible Blood Groups:' }),
+                matchData.compatibleGroups.map(grp => (0, M.jsxDEV)('span', {
+                  className: `px-2.5 py-1 rounded-lg text-xs font-bold ${grp === reqObj.bloodGroup ? 'bg-teal-500 text-navy-900' : 'bg-white/20 text-white'}`,
+                  children: [
+                    grp,
+                    grp === reqObj.bloodGroup ? ' (Exact)' : ' (Compatible)'
+                  ]
+                }, grp))
+              ]
+            })
+          ]
+        }),
+
+        // Filters Bar
+        (0, M.jsxDEV)('div', {
+          className: 'flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-slate-200',
+          children: [
+            (0, M.jsxDEV)('div', {
+              className: 'flex flex-wrap items-center gap-3',
+              children: [
+                (0, M.jsxDEV)('span', { className: 'text-xs font-bold text-slate-600 uppercase tracking-wider', children: 'Filter Matches:' }),
+                (0, M.jsxDEV)('select', {
+                  value: maxDistance,
+                  onChange: (e) => setMaxDistance(Number(e.target.value)),
+                  className: 'text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700 font-medium',
+                  children: [
+                    (0, M.jsxDEV)('option', { value: 5, children: 'Within 5 km' }),
+                    (0, M.jsxDEV)('option', { value: 10, children: 'Within 10 km' }),
+                    (0, M.jsxDEV)('option', { value: 25, children: 'Within 25 km' }),
+                    (0, M.jsxDEV)('option', { value: 50, children: 'Within 50 km' })
+                  ]
+                }),
+                (0, M.jsxDEV)('select', {
+                  value: filterCompatibility,
+                  onChange: (e) => setFilterCompatibility(e.target.value),
+                  className: 'text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700 font-medium',
+                  children: [
+                    (0, M.jsxDEV)('option', { value: 'all', children: 'All Compatible Sources' }),
+                    (0, M.jsxDEV)('option', { value: 'exact', children: 'Exact Match Only' }),
+                    (0, M.jsxDEV)('option', { value: 'alternative', children: 'Compatible Alternatives' })
+                  ]
+                }),
+                (0, M.jsxDEV)('select', {
+                  value: filterAvailability,
+                  onChange: (e) => setFilterAvailability(e.target.value),
+                  className: 'text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-slate-50 text-slate-700 font-medium',
+                  children: [
+                    (0, M.jsxDEV)('option', { value: 'all', children: 'All Stock Levels' }),
+                    (0, M.jsxDEV)('option', { value: 'full', children: 'Fully Available (>= Required)' })
+                  ]
+                })
+              ]
+            }),
+
+            (0, M.jsxDEV)('button', {
+              onClick: handleNotifyAll,
+              disabled: filteredMatches.length === 0,
+              className: 'px-4 py-2 bg-navy-800 hover:bg-navy-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2 shadow-sm',
+              children: [
+                '📢 Notify All Matching Facilities (',
+                filteredMatches.length,
+                ')'
+              ]
+            })
+          ]
+        }),
+
+        // Matches Grid or Empty State
+        loading ? (
+          (0, M.jsxDEV)('div', {
+            className: 'grid sm:grid-cols-2 lg:grid-cols-3 gap-5',
+            children: [1, 2, 3].map(sk => (0, M.jsxDEV)('div', {
+              className: 'bg-white rounded-2xl border border-slate-200 p-6 h-64 animate-pulse'
+            }, sk))
+          })
+        ) : filteredMatches.length === 0 ? (
+          // Requirement 9: "No compatible blood currently available nearby."
+          (0, M.jsxDEV)('div', {
+            className: 'bg-white rounded-2xl border border-slate-200 p-12 text-center max-w-xl mx-auto space-y-4 animate-fade-in',
+            children: [
+              (0, M.jsxDEV)('div', { className: 'w-16 h-16 rounded-full bg-red-50 text-red-500 text-3xl flex items-center justify-center mx-auto', children: '⚠️' }),
+              (0, M.jsxDEV)('h3', { className: 'font-display font-bold text-navy-800 text-lg', children: 'No compatible blood currently available nearby.' }),
+              (0, M.jsxDEV)('p', { className: 'text-sm text-slate-500 max-w-md mx-auto', children: 'None of the verified facilities within the selected radius have sufficient available units for this component. Try expanding your radius filter or notifying the voluntary donor emergency pool.' }),
+              (0, M.jsxDEV)('div', {
+                className: 'pt-2 flex justify-center gap-3',
+                children: [
+                  (0, M.jsxDEV)('button', {
+                    onClick: () => { setMaxDistance(50); setFilterAvailability('all'); setFilterCompatibility('all'); },
+                    className: 'px-4 py-2 bg-navy-800 text-white rounded-xl text-xs font-semibold',
+                    children: 'Expand Search Radius to 50 km'
+                  }),
+                  (0, M.jsxDEV)('button', {
+                    onClick: () => { showToast('Alert broadcasted to voluntary registered donors in Indiranagar/Bangalore.', 'success'); },
+                    className: 'px-4 py-2 bg-teal-600 text-white rounded-xl text-xs font-semibold',
+                    children: 'Alert Voluntary Donors'
+                  })
+                ]
+              })
+            ]
+          })
+        ) : (
+          (0, M.jsxDEV)('div', {
+            className: 'grid sm:grid-cols-2 lg:grid-cols-3 gap-5',
+            children: filteredMatches.map(match => {
+              const isNotified = notifiedSet.has(match.id);
+              const isReserved = (reservedMatchId === match.id);
+
+              return (0, M.jsxDEV)('div', {
+                className: `bg-white rounded-2xl border transition-all flex flex-col justify-between overflow-hidden ${isReserved ? 'border-teal-500 ring-2 ring-teal-500 shadow-md' : 'border-slate-200 hover:border-navy-300 hover:shadow-sm'}`,
+                children: [
+                  // Card Header with Match Status & Score
+                  (0, M.jsxDEV)('div', {
+                    className: `px-4 py-2 text-xs font-bold flex items-center justify-between ${match.isExactMatch ? 'bg-teal-50 text-teal-800 border-b border-teal-100' : 'bg-amber-50 text-amber-900 border-b border-amber-100'}`,
+                    children: [
+                      (0, M.jsxDEV)('span', {
+                        className: 'flex items-center gap-1.5',
+                        children: [
+                          (0, M.jsxDEV)('span', { className: `w-2 h-2 rounded-full ${match.isExactMatch ? 'bg-teal-600' : 'bg-amber-500'}` }),
+                          match.matchStatus
+                        ]
+                      }),
+                      (0, M.jsxDEV)('span', {
+                        className: 'font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-slate-200',
+                        children: [`Match Score: ${match.totalScore}%`]
+                      })
+                    ]
+                  }),
+
+                  // Card Body
+                  (0, M.jsxDEV)('div', {
+                    className: 'p-5 flex-1 space-y-4',
+                    children: [
+                      // Blood Bank Name & Verified Badge
+                      (0, M.jsxDEV)('div', {
+                        children: [
+                          (0, M.jsxDEV)('div', { className: 'flex items-center gap-2', children: [
+                            (0, M.jsxDEV)('h3', { className: 'font-display font-bold text-navy-800 text-base leading-snug', children: match.name }),
+                            match.verified && (0, M.jsxDEV)('span', { className: 'text-[10px] bg-teal-50 text-teal-700 border border-teal-200 px-1.5 py-0.5 rounded-full font-bold', children: '✓ Verified' })
+                          ]}),
+                          (0, M.jsxDEV)('p', { className: 'text-xs text-slate-500 mt-1', children: [`📍 ${match.city} • ${match.distance} km from hospital`] })
+                        ]
+                      }),
+
+                      // Details Matrix (Requirement 4 & 5)
+                      (0, M.jsxDEV)('div', {
+                        className: 'p-3.5 rounded-xl bg-slate-50 border border-slate-100 grid grid-cols-2 gap-3 text-xs',
+                        children: [
+                          (0, M.jsxDEV)('div', { children: [
+                            (0, M.jsxDEV)('span', { className: 'text-slate-400 block', children: 'Patient Needs' }),
+                            (0, M.jsxDEV)('span', { className: 'font-bold text-navy-800', children: [`${match.requiredBloodGroup} (${match.component})`] })
+                          ]}),
+                          (0, M.jsxDEV)('div', { children: [
+                            (0, M.jsxDEV)('span', { className: 'text-slate-400 block', children: 'Offered Group' }),
+                            (0, M.jsxDEV)('span', { className: `font-bold ${match.isExactMatch ? 'text-teal-700' : 'text-amber-700'}`, children: [`${match.matchedBloodGroup} (${match.component})`] })
+                          ]}),
+                          (0, M.jsxDEV)('div', { children: [
+                            (0, M.jsxDEV)('span', { className: 'text-slate-400 block', children: 'Required Units' }),
+                            (0, M.jsxDEV)('span', { className: 'font-semibold text-slate-700', children: [`${match.requiredUnits} Units`] })
+                          ]}),
+                          (0, M.jsxDEV)('div', { children: [
+                            (0, M.jsxDEV)('span', { className: 'text-slate-400 block', children: 'Available Units' }),
+                            (0, M.jsxDEV)('span', { className: 'font-bold text-emerald-700', children: [`${match.availableUnits} Units in Stock`] })
+                          ]})
+                        ]
+                      }),
+
+                      // Requirement 7: Compatible Alternative Notice
+                      !match.isExactMatch && (0, M.jsxDEV)('div', {
+                        className: 'text-[11px] text-amber-800 bg-amber-50/70 p-2.5 rounded-lg border border-amber-200/80 leading-relaxed',
+                        children: [
+                          (0, M.jsxDEV)('span', { className: 'font-bold', children: '⚡ Compatible Alternative: ' }),
+                          `${match.matchedBloodGroup} is cross-match compatible for ${match.requiredBloodGroup} patient per configured ABO/Rh rules. Subject to pre-transfusion testing.`
+                        ]
+                      })
+                    ]
+                  }),
+
+                  // Card Actions
+                  (0, M.jsxDEV)('div', {
+                    className: 'p-4 border-t border-slate-100 bg-slate-50/50 flex items-center gap-2',
+                    children: [
+                      (0, M.jsxDEV)('button', {
+                        onClick: () => handleNotify(match),
+                        className: `flex-1 py-2 px-3 rounded-xl text-xs font-semibold border transition-colors ${isNotified ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`,
+                        children: isNotified ? '✓ Alert Transmitted' : '📢 Notify'
+                      }),
+                      (0, M.jsxDEV)('button', {
+                        onClick: () => handleReserve(match),
+                        disabled: isReserved,
+                        className: `flex-1 py-2 px-3 rounded-xl text-xs font-bold text-white transition-all ${isReserved ? 'bg-teal-600 cursor-default' : 'bg-navy-800 hover:bg-navy-700 shadow-sm'}`,
+                        children: isReserved ? '✓ Reserved!' : '🔒 Reserve Units'
+                      })
+                    ]
+                  })
+                ]
+              }, match.id);
+            })
+          })
+        )
+      ]
+    })
+  });
+}
+
+var $H={landing:Yt,login:EnhancedLoginPage,register:RegisterPage,hospital:ZV,"create-request":EnhancedCreateEmergencyRequest,"smart-matching":EnhancedSmartMatching,"map-view":pH,"request-tracking":vH,"blood-availability":xH,bloodbank:wH,"emergency-response":DH,donor:kH,admin:NH,demo:IH,notifications:zH,history:BH,analytics:VH,verification:WH,profile:EnhancedProfile};function eU(){
   // Determine initial route from URL path or hash
   let initialRoute = 'landing';
   if (typeof window !== 'undefined') {
