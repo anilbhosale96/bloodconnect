@@ -763,14 +763,26 @@ function EnhancedLoginPage() {
   const { navigate, setRole, showToast } = YH();
   const [selectedRole, setSelectedRole] = D.useState('hospital');
   const [showPassword, setShowPassword] = D.useState(false);
-  const [email, setEmail] = D.useState('');
-  const [password, setPassword] = D.useState('');
+  const [email, setEmail] = D.useState('hospital@lifelink.org');
+  const [password, setPassword] = D.useState('Hospital123!');
   const [loading, setLoading] = D.useState(false);
   const [errorMsg, setErrorMsg] = D.useState('');
+
+  const demoAccountsMap = {
+    hospital: { roleId: 'hospital', label: 'Hospital', icon: '🏥', email: 'hospital@lifelink.org', pass: 'Hospital123!', persona: 'Dr. Arvind Rao (Manipal Emergency)' },
+    bloodbank: { roleId: 'bloodbank', label: 'Blood Bank', icon: '🏦', email: 'bloodbank@lifelink.org', pass: 'BloodBank123!', persona: 'Sunita Deshmukh (Metro Blood Bank)' },
+    donor: { roleId: 'donor', label: 'Donor (O-)', icon: '🩸', email: 'donor@lifelink.org', pass: 'Donor123!', persona: 'Priya Sharma (Universal O- Donor)' },
+    admin: { roleId: 'admin', label: 'Admin', icon: '🛡️', email: 'admin@lifelink.org', pass: 'Password123!', persona: 'Dir. Vikram Mehta (Central Admin)' }
+  };
 
   const handleRoleSelect = (roleId) => {
     setSelectedRole(roleId);
     setErrorMsg('');
+    const demo = demoAccountsMap[roleId];
+    if (demo) {
+      setEmail(demo.email);
+      setPassword(demo.pass);
+    }
   };
 
   const handleLogin = async (e) => {
@@ -945,6 +957,55 @@ function EnhancedLoginPage() {
                         })
                       ]
                     }, item.id))
+                  })
+                ]
+              }),
+
+              // Demo Accounts Quick Selection Bar
+              (0, M.jsxDEV)('div', {
+                className: 'mb-5 p-3.5 bg-gradient-to-br from-slate-50 to-teal-50/40 border border-slate-200 rounded-xl shadow-xs',
+                children: [
+                  (0, M.jsxDEV)('div', {
+                    className: 'flex items-center justify-between mb-2',
+                    children: [
+                      (0, M.jsxDEV)('span', {
+                        className: 'text-xs font-bold text-navy-800 flex items-center gap-1.5',
+                        children: [(0, M.jsxDEV)('span', { className: 'text-teal-600', children: '⚡' }), 'Demo Accounts (1-Click Fill & Login)']
+                      }),
+                      (0, M.jsxDEV)('span', {
+                        className: 'text-[10px] text-teal-600 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded font-semibold',
+                        children: 'Pre-configured'
+                      })
+                    ]
+                  }),
+                  (0, M.jsxDEV)('div', {
+                    className: 'grid grid-cols-2 gap-1.5',
+                    children: Object.values(demoAccountsMap).map((demo) => (0, M.jsxDEV)('button', {
+                      key: demo.roleId,
+                      type: 'button',
+                      onClick: () => {
+                        handleRoleSelect(demo.roleId);
+                        showToast && showToast(`Loaded ${demo.label} credentials`, 'info');
+                      },
+                      className: `p-2 text-left rounded-lg border transition-all text-xs ${selectedRole === demo.roleId ? 'bg-white border-teal-500 ring-2 ring-teal-500/20 shadow-xs' : 'bg-white/80 border-slate-200 hover:border-slate-300 text-slate-700'}`,
+                      children: [
+                        (0, M.jsxDEV)('div', {
+                          className: 'flex items-center justify-between font-bold leading-tight text-navy-900',
+                          children: [
+                            (0, M.jsxDEV)('span', { children: [demo.icon, ' ', demo.label] }),
+                            selectedRole === demo.roleId && (0, M.jsxDEV)('span', { className: 'text-[10px] text-teal-700 bg-teal-100/80 px-1 py-0.2 rounded font-bold', children: 'Active' })
+                          ]
+                        }),
+                        (0, M.jsxDEV)('div', {
+                          className: 'text-[11px] text-slate-500 font-mono truncate mt-0.5',
+                          children: demo.email
+                        }),
+                        (0, M.jsxDEV)('div', {
+                          className: 'text-[10px] text-teal-700/80 font-mono font-medium',
+                          children: [`Pass: `, demo.pass]
+                        })
+                      ]
+                    }))
                   })
                 ]
               }),

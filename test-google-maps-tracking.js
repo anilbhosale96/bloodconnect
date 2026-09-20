@@ -75,3 +75,4 @@ if (failed > 0) {
 } else {
   console.log('All Google Maps Live Tracking checks PASSED successfully!');
 }
+
