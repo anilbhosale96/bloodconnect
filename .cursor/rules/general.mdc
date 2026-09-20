@@ -1,0 +1,39 @@
+# LIFE-LINK Development Rules
+
+## General
+- Use TypeScript. Strict mode.
+- Reuse existing components. Do not duplicate.
+- Keep functions small. Single responsibility.
+- Do not modify unrelated files. Focused changes.
+- Follow DESIGN.md exactly.
+
+## Before Coding
+- Read relevant docs
+- Inspect existing code
+- Reuse functionality where possible
+- Make a plan for large changes
+
+## UI
+- Follow DESIGN.md
+- Mobile responsive (375px, 768px, 1440px)
+- Include loading states
+- Include error states
+- Include empty states
+- Accessible: ARIA labels, semantic HTML
+
+## Security
+- Never expose API keys
+- Validate user input server-side
+- Verify authorization
+- Check roles before operations
+
+## Testing
+- Add tests for important features
+- Run tests after implementation
+- Fix failing tests before merging
+
+## Git
+- Small commits
+- Descriptive messages: 'feat: add emergency matching'
+- Branch per feature
+
