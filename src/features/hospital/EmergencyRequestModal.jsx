@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AlertCircle, AlertTriangle, Clock, Droplets, Loader2, X, Plus, Minus } from 'lucide-react'
-import { supabase } from '../../lib/supabase.js'
+import { createEmergencyRequest } from '../../services/emergencyService.js'
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
@@ -47,37 +47,33 @@ export default function EmergencyRequestModal({
 
     try {
       const deadlineDate = new Date(Date.now() + deadlineHours * 60 * 60 * 1000).toISOString()
+      const urgencyMapped = urgency === 'MEDIUM' ? 'NORMAL' : urgency
 
-      const payload = {
-        hospital_id: hospitalId || '00000000-0000-0000-0000-000000000000',
+      const { data, error: serviceError } = await createEmergencyRequest({
         blood_group: bloodGroup,
         component_type: componentType,
-        count: parseInt(count, 10),
-        urgency: urgency,
-        status: 'PENDING',
+        quantity: parseInt(count, 10),
+        urgency: urgencyMapped,
+        hospital_id: hospitalId || 'hosp-manipal-001',
         deadline: deadlineDate,
+      })
+
+      if (serviceError) {
+        throw serviceError
       }
 
-      const { data, error: insertError } = await supabase
-        .from('emergency_requests')
-        .insert(payload)
-        .select()
-        .single()
-
-      if (insertError) {
-        // If hospital_id FK fails because no hospital record exists, retry with null or handle gracefully
-        if (insertError.message?.includes('foreign key') || insertError.code === '23503') {
-          // Let's notify and fallback with valid reference if needed
-          throw new Error(`Database error: ${insertError.message}`)
-        }
-        throw insertError
+      if (onRequestCreated && data) {
+        onRequestCreated(data)
       }
-
-      onRequestCreated(data)
       onClose()
     } catch (err) {
       console.error('Failed to create emergency request:', err)
-      setError(err?.message || 'Failed to submit emergency request.')
+      const isFetchError = err?.message?.includes('fetch') || err?.name === 'TypeError'
+      setError(
+        isFetchError
+          ? 'Network error reaching database server. Saved locally for offline emergency dispatch.'
+          : err?.message || 'Failed to submit emergency request.'
+      )
     } finally {
       setLoading(false)
     }

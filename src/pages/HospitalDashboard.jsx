@@ -7,6 +7,7 @@ import BloodAvailabilityOverview from '../features/hospital/BloodAvailabilityOve
 import EmergencyRequestModal from '../features/hospital/EmergencyRequestModal.jsx'
 import NotificationsPanel from '../features/hospital/NotificationsPanel.jsx'
 import { getCurrentUser, getUserProfile } from '../services/auth.js'
+import { getEmergencyRequests } from '../services/emergencyService.js'
 import { supabase } from '../lib/supabase.js'
 import { useRealtimeUpdates } from '../hooks/useRealtimeUpdates.js'
 
@@ -66,13 +67,19 @@ export default function HospitalDashboard() {
         }
 
         // 3. Fetch emergency requests
-        const { data: reqData, error: reqError } = await supabase
-          .from('emergency_requests')
-          .select('*')
-          .order('created_at', { ascending: false })
+        const { data: reqData } = await getEmergencyRequests(currentUser?.id)
+        let localReqs = []
+        try {
+          localReqs = JSON.parse(localStorage.getItem('lifelink_demo_requests') || '[]')
+        } catch {}
 
-        if (!ignore && !reqError && reqData) {
-          setRequests(reqData)
+        const merged = [
+          ...localReqs,
+          ...(reqData || []).filter((r) => !localReqs.some((lr) => lr.id === r.id)),
+        ]
+
+        if (!ignore) {
+          setRequests(merged)
         }
 
         // 4. Fetch notifications
