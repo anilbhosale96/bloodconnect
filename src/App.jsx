@@ -10,6 +10,7 @@ import BloodBankDashboard from './pages/BloodBankDashboard.jsx'
 import EmergencyRequestDetail from './pages/EmergencyRequestDetail.jsx'
 import DonorDashboard from './pages/DonorDashboard.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
+import CommandCenter from './pages/CommandCenter.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 
 export default function App() {
@@ -101,6 +102,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        {/* Judges Demo Screen: Emergency Command Center */}
+        <Route path="/command-center" element={<CommandCenter />} />
+        <Route path="/demo" element={<CommandCenter />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

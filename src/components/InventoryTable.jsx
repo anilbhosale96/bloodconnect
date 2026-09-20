@@ -71,6 +71,7 @@ export default function InventoryTable({
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
             <input
               type="text"
+              aria-label="Search blood group or component"
               placeholder="Search group or component..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -82,6 +83,7 @@ export default function InventoryTable({
           <div className="flex items-center gap-1">
             <Filter className="w-3.5 h-3.5 text-slate-400" />
             <select
+              aria-label="Filter inventory by blood group"
               value={selectedGroup}
               onChange={(e) => setSelectedGroup(e.target.value)}
               className="py-1.5 px-2.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -97,6 +99,7 @@ export default function InventoryTable({
 
           {/* Component Filter */}
           <select
+            aria-label="Filter inventory by component type"
             value={selectedComponent}
             onChange={(e) => setSelectedComponent(e.target.value)}
             className="py-1.5 px-2.5 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"

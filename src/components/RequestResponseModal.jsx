@@ -164,9 +164,10 @@ export default function RequestResponseModal({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl cursor-pointer"
                 >
-                  Done
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Close Window</span>
                 </button>
               </div>
             </div>
@@ -219,6 +220,7 @@ export default function RequestResponseModal({
                   <div className="flex items-center gap-3">
                     <input
                       type="number"
+                      aria-label="Specify partial units to offer"
                       min="1"
                       max={Math.max(1, requestedUnits - 1)}
                       value={partialUnits}
@@ -251,10 +253,12 @@ export default function RequestResponseModal({
               {/* Decline Reason Input (if user clicked decline) */}
               {selectedAction === 'DECLINE' && (
                 <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 space-y-2.5 animate-in fade-in">
-                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  <label htmlFor="decline-reason-select" className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
                     Reason for Inability to Fulfill:
                   </label>
                   <select
+                    id="decline-reason-select"
+                    aria-label="Reason for inability to fulfill request"
                     value={declineReason}
                     onChange={(e) => setDeclineReason(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"

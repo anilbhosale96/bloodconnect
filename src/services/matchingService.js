@@ -7,6 +7,7 @@
  */
 
 import { supabase } from '../lib/supabase.js';
+import { getSeedData, SEED_BLOOD_BANKS, SEED_INVENTORY } from '../lib/seedData.js';
 import {
   calculateHaversineDistance,
   calculateAvailabilityScore,
@@ -198,24 +199,53 @@ export async function findMatchesForRequest(requestOrId, options = {}) {
   }
 
   // 2. Fetch inventory items matching blood group & component
-  const { data: inventoryItems, error: invError } = await supabase
-    .from('inventory')
-    .select('*')
-    .eq('blood_group', request.blood_group)
-    .eq('component_type', request.component_type)
-    .gt('available_units', 0);
+  let inventoryItems = []
+  try {
+    const { data, error: invError } = await supabase
+      .from('inventory')
+      .select('*')
+      .eq('blood_group', request.blood_group)
+      .eq('component_type', request.component_type)
+      .gt('available_units', 0);
 
-  if (invError) {
-    console.error('Error fetching inventory:', invError);
+    if (invError) {
+      console.warn('Error fetching inventory (using seed fallback):', invError.message);
+    }
+    inventoryItems = data || [];
+  } catch {
+    inventoryItems = [];
   }
 
   // 3. Fetch blood bank details (for names and location coordinates)
-  const { data: bloodBanks, error: bankError } = await supabase
-    .from('blood_banks')
-    .select('id, profile_id, name, address, city, latitude, longitude, phone');
+  let bloodBanks = []
+  try {
+    const { data, error: bankError } = await supabase
+      .from('blood_banks')
+      .select('id, profile_id, name, address, city, latitude, longitude, phone');
 
-  if (bankError) {
-    console.error('Error fetching blood banks:', bankError);
+    if (bankError) {
+      console.warn('Error fetching blood banks (using seed fallback):', bankError.message);
+    }
+    bloodBanks = data || [];
+  } catch {
+    bloodBanks = [];
+  }
+
+  // Fallback to seeded demo inventory & blood banks if database is unseeded
+  if (inventoryItems.length === 0) {
+    const seedData = getSeedData();
+    const allSeedInv = seedData?.inventory || SEED_INVENTORY;
+    inventoryItems = allSeedInv.filter(
+      (inv) =>
+        inv.blood_group === request.blood_group &&
+        inv.component_type === request.component_type &&
+        (inv.available_units || 0) > 0
+    );
+  }
+
+  if (bloodBanks.length === 0) {
+    const seedData = getSeedData();
+    bloodBanks = seedData?.bloodBanks || SEED_BLOOD_BANKS;
   }
 
   // Map blood bank locations onto inventory items

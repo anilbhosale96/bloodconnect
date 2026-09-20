@@ -380,7 +380,7 @@ export default function MatchingResults() {
             ))}
           </div>
         ) : matches.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
+          <div role="alert" className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
             <div className="w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4">
               <AlertCircle className="w-6 h-6" />
             </div>
@@ -390,10 +390,12 @@ export default function MatchingResults() {
               <strong className="text-slate-800">{requestData.blood_group}</strong> within your delivery radius.
             </p>
             <button
+              type="button"
               onClick={() => navigate('/hospital')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors cursor-pointer"
             >
-              Return to Dashboard
+              <ArrowLeft className="w-4 h-4" />
+              <span>Return to Dashboard</span>
             </button>
           </div>
         ) : (

@@ -5,6 +5,11 @@
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
+  html {
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+
   body {
     margin: 0;
     padding: 0;
@@ -14,11 +19,23 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
+    overflow-x: hidden;
   }
 
   #root {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* Accessible high-contrast focus indicators for WCAG 2.1 AA keyboard navigation */
+  :focus-visible {
+    outline: 2px solid #3B82F6;
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
   }
 }

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Droplet, ArrowRight, ShieldCheck, Zap, Clock } from 'lucide-react'
+import { Droplet, ArrowRight, ShieldCheck, Zap, Clock, Building2, LogIn, Radio } from 'lucide-react'
 
 export default function Landing() {
   return (
@@ -13,18 +13,28 @@ export default function Landing() {
             </div>
             <span className="font-bold text-xl text-slate-900 tracking-tight">LIFE-LINK</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/command-center"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors"
+            >
+              <Radio className="w-3.5 h-3.5 animate-pulse" />
+              <span>Command Center</span>
+            </Link>
             <Link
               to="/login"
-              className="px-4 py-2 text-sm font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+              className="inline-flex items-center gap-1 px-3.5 py-2 text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
             >
-              Sign In
+              <LogIn className="w-4 h-4" />
+              <span>Sign In</span>
             </Link>
             <Link
               to="/signup"
-              className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition-colors"
             >
-              Register Facility
+              <Building2 className="w-4 h-4" />
+              <span className="hidden xs:inline">Register Facility</span>
+              <span className="xs:hidden">Register</span>
             </Link>
           </div>
         </div>
@@ -44,7 +54,7 @@ export default function Landing() {
             LIFE-LINK coordinates hospitals, blood banks, and donors with intelligent priority-ranked matching, live response tracking, and auditable fulfillment workflows.
           </p>
 
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <Link
               to="/signup"
               className="w-full sm:w-auto px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm rounded-xl shadow-sm flex items-center justify-center gap-2 transition-colors"
@@ -53,10 +63,18 @@ export default function Landing() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              to="/login"
-              className="w-full sm:w-auto px-6 py-3.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm rounded-xl border border-slate-200 shadow-xs flex items-center justify-center transition-colors"
+              to="/command-center"
+              className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl border border-slate-800 shadow-xs flex items-center justify-center gap-2 transition-colors"
             >
-              Sign In to Your Dashboard
+              <Radio className="w-4 h-4 text-red-500 animate-pulse" />
+              <span>Live Command Center (Demo)</span>
+            </Link>
+            <Link
+              to="/login"
+              className="w-full sm:w-auto px-5 py-3.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm rounded-xl border border-slate-200 shadow-xs flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <LogIn className="w-4 h-4 text-slate-500" />
+              <span>Sign In</span>
             </Link>
           </div>
         </div>

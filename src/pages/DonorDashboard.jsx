@@ -289,6 +289,7 @@ export default function DonorDashboard() {
                 }`}
                 role="switch"
                 aria-checked={donorProfile.is_available}
+                aria-label="Toggle donor availability status"
                 data-testid="availability-toggle"
               >
                 <span
@@ -312,14 +313,16 @@ export default function DonorDashboard() {
                   <button
                     key={bg}
                     type="button"
+                    aria-label={`Select ${bg} blood group`}
                     onClick={() => handleBloodGroupChange(bg)}
-                    className={`px-2 py-0.5 rounded-lg font-bold transition-all text-xs cursor-pointer ${
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold transition-all text-xs cursor-pointer ${
                       donorProfile.blood_group === bg
                         ? 'bg-red-600 text-white shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                     data-testid={`bg-filter-${bg}`}
                   >
+                    <span className={`w-1.5 h-1.5 rounded-full ${donorProfile.blood_group === bg ? 'bg-white' : 'bg-slate-300'}`} />
                     {bg}
                   </button>
                 ))}
@@ -354,7 +357,7 @@ export default function DonorDashboard() {
 
         {/* Unavailability Alert */}
         {!donorProfile.is_available && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-amber-800 text-xs sm:text-sm">
+          <div role="alert" className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3 text-amber-800 text-xs sm:text-sm">
             <Power className="w-5 h-5 text-amber-600 shrink-0" />
             <span>
               <strong>You are currently marked Unavailable.</strong> You can browse nearby requests, but you cannot submit a volunteer response until you toggle your availability to <strong>Available</strong>.

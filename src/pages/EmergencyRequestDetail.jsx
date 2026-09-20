@@ -72,9 +72,10 @@ export default function EmergencyRequestDetail() {
           <p className="text-xs text-slate-500 mt-1 mb-6">{error || 'This emergency request could not be located.'}</p>
           <Link
             to="/blood-bank"
-            className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors"
           >
-            Return to Blood Bank Portal
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Return to Blood Bank Portal</span>
           </Link>
         </div>
       </div>

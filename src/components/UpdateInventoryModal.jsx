@@ -63,10 +63,12 @@ function InventoryFormContent({
 
       {/* Blood Group */}
       <div>
-        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+        <label htmlFor="inv-blood-group" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
           Blood Group
         </label>
         <select
+          id="inv-blood-group"
+          aria-label="Select blood group"
           value={bloodGroup}
           onChange={(e) => setBloodGroup(e.target.value)}
           className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
@@ -81,10 +83,12 @@ function InventoryFormContent({
 
       {/* Component Type */}
       <div>
-        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+        <label htmlFor="inv-component-type" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
           Component Type
         </label>
         <select
+          id="inv-component-type"
+          aria-label="Select blood component type"
           value={componentType}
           onChange={(e) => setComponentType(e.target.value)}
           className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
@@ -100,10 +104,12 @@ function InventoryFormContent({
       {/* Units Available & Reserved */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+          <label htmlFor="inv-available-units" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
             Available Units
           </label>
           <input
+            id="inv-available-units"
+            aria-label="Available units count"
             type="number"
             min="0"
             max="999"
@@ -115,10 +121,12 @@ function InventoryFormContent({
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+          <label htmlFor="inv-reserved-units" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
             Reserved Units
           </label>
           <input
+            id="inv-reserved-units"
+            aria-label="Reserved units count"
             type="number"
             min="0"
             max="999"
@@ -135,9 +143,10 @@ function InventoryFormContent({
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 cursor-pointer"
+          className="inline-flex items-center gap-1 px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-xl hover:bg-slate-100 cursor-pointer"
         >
-          Cancel
+          <X className="w-3.5 h-3.5" />
+          <span>Cancel</span>
         </button>
         <button
           type="submit"

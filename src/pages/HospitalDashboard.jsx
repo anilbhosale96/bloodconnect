@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { AlertCircle, AlertTriangle, Clock, Plus, ShieldCheck } from 'lucide-react'
+import { AlertCircle, AlertTriangle, Clock, Plus, ShieldCheck, RefreshCw } from 'lucide-react'
 import Header from '../components/Header.jsx'
 import HospitalInformation from '../features/hospital/HospitalInformation.jsx'
 import ActiveEmergencyRequests from '../features/hospital/ActiveEmergencyRequests.jsx'
@@ -160,9 +160,10 @@ export default function HospitalDashboard() {
             </div>
             <button
               onClick={loadDashboardData}
-              className="text-xs font-bold underline hover:no-underline text-red-700"
+              className="inline-flex items-center gap-1.5 text-xs font-bold underline hover:no-underline text-red-700 cursor-pointer"
             >
-              Retry
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Retry</span>
             </button>
           </div>
         )}

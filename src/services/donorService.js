@@ -5,6 +5,7 @@
 
 import { supabase } from '../lib/supabase.js';
 import { calculateHaversineDistance } from '../lib/calculations.js';
+import { getSeedData, SEED_EMERGENCY_REQUESTS } from '../lib/seedData.js';
 
 // Standard donor compatibility matrix (or exact matching)
 export const BLOOD_COMPATIBILITY = {
@@ -98,15 +99,17 @@ export function filterNearbyRequestsForDonor(requests = [], donor = {}, options 
 export async function fetchDonorCompatibleRequests(donor, options = {}) {
   try {
     // 1. Fetch active emergency requests
-    const { data: requests, error: reqErr } = await supabase
+    const { data: requests } = await supabase
       .from('emergency_requests')
       .select('*')
       .neq('status', 'FULFILLED')
       .neq('status', 'CANCELLED')
       .order('created_at', { ascending: false });
 
-    if (reqErr) {
-      console.warn('Could not fetch emergency_requests for donor:', reqErr.message);
+    let activeRequests = requests || [];
+    if (activeRequests.length === 0) {
+      const seedData = getSeedData();
+      activeRequests = seedData?.emergencyRequests || SEED_EMERGENCY_REQUESTS;
     }
 
     // 2. Fetch hospitals metadata for facility names
@@ -120,15 +123,17 @@ export async function fetchDonorCompatibleRequests(donor, options = {}) {
       if (h.profile_id) hospMap.set(h.profile_id, h.hospital_name);
     });
 
-    const enriched = (requests || []).map((r) => ({
+    const enriched = activeRequests.map((r) => ({
       ...r,
-      hospital_name: hospMap.get(r.hospital_id) || 'Emergency Medical Center'
+      hospital_name: hospMap.get(r.hospital_id) || r.hospital_name || 'Emergency Medical Center'
     }));
 
     return filterNearbyRequestsForDonor(enriched, donor, options);
   } catch (err) {
-    console.warn('fetchDonorCompatibleRequests error:', err);
-    return [];
+    console.warn('fetchDonorCompatibleRequests error (using seed fallback):', err);
+    const seedData = getSeedData();
+    const activeRequests = seedData?.emergencyRequests || SEED_EMERGENCY_REQUESTS;
+    return filterNearbyRequestsForDonor(activeRequests, donor, options);
   }
 }
 

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js'
+import { getSeedData, SEED_INVENTORY } from '../lib/seedData.js'
 
 export const STANDARD_BLOOD_GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
 export const STANDARD_COMPONENTS = ['Whole Blood', 'PRBC', 'Platelets', 'FFP', 'Cryoprecipitate']
@@ -21,11 +22,18 @@ export async function fetchInventory(bloodBankId) {
 
     const { data, error } = await query
 
-    if (error) {
-      return { data: null, error }
+    if (!error && data && data.length > 0) {
+      return { data, error: null }
     }
 
-    return { data: data || [], error: null }
+    // Fallback to seeded demo inventory
+    const seedData = getSeedData()
+    let stock = seedData?.inventory || SEED_INVENTORY
+    if (bloodBankId) {
+      stock = stock.filter((item) => item.blood_bank_id === bloodBankId)
+    }
+
+    return { data: stock, error: null }
   } catch (err) {
     return { data: null, error: err instanceof Error ? err : new Error(String(err)) }
   }

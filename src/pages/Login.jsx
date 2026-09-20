@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { AlertCircle, ArrowRight, CheckCircle2, Droplet, Loader2, Lock, Mail } from 'lucide-react'
+import { AlertCircle, ArrowRight, CheckCircle2, Droplet, Loader2, Lock, Mail, Building2, Heart, Shield, Sparkles } from 'lucide-react'
 import { signIn } from '../services/auth.js'
+import { DEMO_USERS } from '../lib/seedData.js'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -63,6 +64,37 @@ export default function Login() {
         break
       default:
         navigate('/')
+    }
+  }
+
+  const handleQuickDemoLogin = async (demoUser) => {
+    setEmail(demoUser.email)
+    setPassword(demoUser.password)
+    setError(null)
+    setSuccessMessage(null)
+    setLoading(true)
+
+    try {
+      const { data, error: authError } = await signIn({
+        email: demoUser.email,
+        password: demoUser.password,
+      })
+
+      if (authError) {
+        setError(authError.message || 'Demo login failed')
+        setLoading(false)
+        return
+      }
+
+      const userRole = data?.profile?.role || demoUser.role
+      setSuccessMessage(`Demo authenticated as ${demoUser.fullName} (${userRole.replace('_', ' ')}). Opening portal...`)
+
+      setTimeout(() => {
+        redirectByRole(userRole)
+      }, 500)
+    } catch (err) {
+      setError(err?.message || 'Unexpected login error')
+      setLoading(false)
     }
   }
 
@@ -209,14 +241,62 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Demo Credentials Helper Card */}
-        <div className="mt-6 p-4 rounded-xl bg-blue-50/70 border border-blue-200/60 text-xs text-slate-600">
-          <p className="font-semibold text-blue-900 mb-1">Supported Roles</p>
-          <div className="grid grid-cols-2 gap-1.5 text-slate-700">
-            <span>&bull; Hospital</span>
-            <span>&bull; Blood Bank</span>
-            <span>&bull; Registered Donor</span>
-            <span>&bull; Administrator</span>
+        {/* 1-Click Demo Login Panel (Presentation & Judges) */}
+        <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-white border border-slate-200 shadow-xs">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+              <Sparkles className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span>1-Click Presentation Demo Login</span>
+            </div>
+            <span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+              Judges Mode
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            Select an official profile to instantly load its respective portal and live workflow:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {DEMO_USERS.map((demo) => {
+              const RoleIcon =
+                demo.role === 'hospital'
+                  ? Building2
+                  : demo.role === 'blood_bank'
+                  ? Droplet
+                  : demo.role === 'donor'
+                  ? Heart
+                  : Shield
+
+              return (
+                <button
+                  key={demo.role}
+                  type="button"
+                  disabled={loading}
+                  aria-label={`Log in as ${demo.label}`}
+                  onClick={() => handleQuickDemoLogin(demo)}
+                  className="flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-200 hover:border-blue-300 bg-slate-50/70 hover:bg-blue-50/50 text-left transition-all cursor-pointer group disabled:opacity-50"
+                >
+                  <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${
+                    demo.role === 'hospital'
+                      ? 'bg-blue-100 text-blue-700'
+                      : demo.role === 'blood_bank'
+                      ? 'bg-rose-100 text-rose-700'
+                      : demo.role === 'donor'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-purple-100 text-purple-700'
+                  }`}>
+                    <RoleIcon className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-800 group-hover:text-blue-700 truncate">
+                      {demo.fullName}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      {demo.label}
+                    </p>
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
 

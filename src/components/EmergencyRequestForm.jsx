@@ -6,6 +6,7 @@ import {
   Droplet,
   Loader2,
   MapPin,
+  Plus,
   Send,
   Sparkles,
 } from 'lucide-react'
@@ -205,9 +206,10 @@ export default function EmergencyRequestForm({
               <button
                 type="button"
                 onClick={handleReset}
-                className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-2"
               >
-                Submit Another Request
+                <Plus className="w-4 h-4" />
+                <span>Submit Another Request</span>
               </button>
             </div>
           </div>

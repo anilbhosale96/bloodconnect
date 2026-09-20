@@ -8,6 +8,7 @@ import {
   Package,
   Plus,
   RefreshCw,
+  Send,
   ShieldCheck,
 } from 'lucide-react'
 import InventoryTable from '../components/InventoryTable.jsx'
@@ -244,7 +245,7 @@ export default function BloodBankDashboard() {
 
         {/* Emergency Alert Banner if requests > 0 */}
         {emergencyCount > 0 && (
-          <div className="p-4 rounded-2xl bg-red-600 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div role="alert" className="p-4 rounded-2xl bg-red-600 text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-white/20 text-white">
                 <Bell className="w-5 h-5 animate-bounce" />
@@ -377,9 +378,10 @@ export default function BloodBankDashboard() {
                     <button
                       type="button"
                       onClick={() => handleOpenRespondModal(req)}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
                     >
-                      Respond
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Respond</span>
                     </button>
                   </div>
                 </div>

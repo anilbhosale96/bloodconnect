@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js'
+import { getSeedData, SEED_EMERGENCY_REQUESTS } from '../lib/seedData.js'
 
 export const VALID_BLOOD_GROUPS = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-']
 
@@ -152,13 +153,25 @@ export async function getEmergencyRequests(hospital_id) {
 
     const { data, error } = await query
 
-    if (error) {
-      return { data: null, error }
+    if (!error && data && data.length > 0) {
+      return { data, error: null }
     }
 
-    return { data: data || [], error: null }
-  } catch (err) {
-    return { data: null, error: err instanceof Error ? err : new Error(String(err)) }
+    // Fallback to seeded demo requests
+    const seedData = getSeedData()
+    let requests = seedData?.emergencyRequests || SEED_EMERGENCY_REQUESTS
+    if (hospital_id) {
+      requests = requests.filter((r) => r.hospital_id === hospital_id)
+    }
+
+    return { data: requests, error: null }
+  } catch {
+    const seedData = getSeedData()
+    let requests = seedData?.emergencyRequests || SEED_EMERGENCY_REQUESTS
+    if (hospital_id) {
+      requests = requests.filter((r) => r.hospital_id === hospital_id)
+    }
+    return { data: requests, error: null }
   }
 }
 

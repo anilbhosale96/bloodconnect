@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Clock, Droplet, RefreshCw, Sparkles, History } from 'lucide-react'
+import { Clock, Droplet, RefreshCw, Sparkles, History, Plus } from 'lucide-react'
 
 const STATUS_STEPS = ['PENDING', 'MATCHING', 'RESPONDED', 'FULFILLED']
 
@@ -42,14 +42,18 @@ export default function ActiveEmergencyRequests({
               <button
                 key={f}
                 type="button"
+                aria-label={`Filter requests by ${f}`}
                 onClick={() => setFilter(f)}
-                className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
                   filter === f
                     ? 'bg-white text-slate-900 shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                {f}
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  f === 'CRITICAL' ? 'bg-red-600' : f === 'ACTIVE' ? 'bg-blue-600' : f === 'FULFILLED' ? 'bg-emerald-600' : 'bg-slate-400'
+                }`} />
+                <span>{f}</span>
               </button>
             ))}
           </div>
@@ -84,9 +88,10 @@ export default function ActiveEmergencyRequests({
             <button
               type="button"
               onClick={onCreateRequest}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
             >
-              + Create Emergency Request
+              <Plus className="w-3.5 h-3.5" />
+              <span>Create Emergency Request</span>
             </button>
           </div>
         ) : (
